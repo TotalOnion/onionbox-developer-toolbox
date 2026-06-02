@@ -1,8 +1,8 @@
 <?php
 
-namespace ModernWpPluginBoilerplate\Controllers;
+namespace OnionWordpressDeveloperToolbox\Controllers;
 
-use ModernWpPluginBoilerplate\Exceptions;
+use \WP_CLI;
 
 abstract class AbstractController
 {
@@ -30,31 +30,5 @@ abstract class AbstractController
     {
         $this->pluginName = $pluginName;
         $this->version = $version;
-    }
-
-    /**
-     * Down and dirty renderer. Loads views from src/Resources/views/
-     *
-     * @var string $template       In the Symfony style like "shortcodes:generator.php"
-     * @var ?array $templateData   An associative array of data to make available to the template
-     */
-    protected function render(string $template, ?array $templateData = []): string
-    {
-        list($folder, $filename) = explode(':', $template);
-        $filename = MODERN_WP_PLUGIN_BOILERPLATE_PLUGIN_FOLDER . '/src/Resources/views/' . $folder . '/' . $filename;
-
-        if (!file_exists($filename)) {
-            throw new Exceptions\TemplateException(sprintf('Template %s not found.', $filename));
-        }
-
-        if ($templateData) {
-            foreach ($templateData as $key => $value) {
-                $$key = $value;
-            }
-        }
-
-        ob_start();
-        include $filename;
-        return ob_get_clean();
     }
 }

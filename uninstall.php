@@ -21,7 +21,7 @@
  *
  * @link       https://totalonion.com
  * @since      1.0.0
- * @package    ModernWpPluginBoilerplate
+ * @package    OnionWordpressDeveloperToolbox
  */
 
 // If uninstall not called from WordPress, then exit.

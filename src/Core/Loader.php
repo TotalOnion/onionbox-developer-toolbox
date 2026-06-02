@@ -1,6 +1,6 @@
 <?php
 
-namespace ModernWpPluginBoilerplate\Core;
+namespace OnionWordpressDeveloperToolbox\Core;
 
 /**
  * Register all actions and filters for the plugin
@@ -8,8 +8,8 @@ namespace ModernWpPluginBoilerplate\Core;
  * @link       https://totalonion.com
  * @since      1.0.0
  *
- * @package    ModernWpPluginBoilerplate
- * @subpackage ModernWpPluginBoilerplate/Core
+ * @package    OnionWordpressDeveloperToolbox
+ * @subpackage OnionWordpressDeveloperToolbox/Core
  */
 
 /**
@@ -19,8 +19,8 @@ namespace ModernWpPluginBoilerplate\Core;
  * the plugin, and register them with the WordPress API. Call the
  * run function to execute the list of actions and filters.
  *
- * @package    ModernWpPluginBoilerplate
- * @subpackage ModernWpPluginBoilerplate/Core
+ * @package    OnionWordpressDeveloperToolbox
+ * @subpackage OnionWordpressDeveloperToolbox/Core
  * @author     Ben Broadhurst <ben@totalonion.com>
  */
 class Loader

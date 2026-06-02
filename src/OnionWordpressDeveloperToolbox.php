@@ -1,10 +1,11 @@
 <?php
 
-namespace ModernWpPluginBoilerplate;
+namespace OnionWordpressDeveloperToolbox;
 
-use ModernWpPluginBoilerplate\Core;
-use ModernWpPluginBoilerplate\Controllers\Admin;
-use ModernWpPluginBoilerplate\Controllers\Frontend;
+use OnionWordpressDeveloperToolbox\Controllers\Command\JsonLdCommand;
+use OnionWordpressDeveloperToolbox\Controllers\Command\RedirectionAuditCommand;
+use OnionWordpressDeveloperToolbox\Core;
+use \WP_CLI;
 
 /**
  * The core plugin class.
@@ -16,10 +17,10 @@ use ModernWpPluginBoilerplate\Controllers\Frontend;
  * version of the plugin.
  *
  * @since      1.0.0
- * @package    ModernWpPluginBoilerplate
+ * @package    OnionWordpressDeveloperToolbox
  * @author     Ben Broadhurst <ben@totalonion.com>
  */
-class ModernWpPluginBoilerplate {
+class OnionWordpressDeveloperToolbox {
 
     /**
      * The loader that's responsible for maintaining and registering all hooks that power
@@ -27,7 +28,7 @@ class ModernWpPluginBoilerplate {
      *
      * @since    1.0.0
      * @access   protected
-     * @var      ModernWpPluginBoilerplate\Core\Loader    $loader    Maintains and registers all hooks for the plugin.
+     * @var      OnionWordpressDeveloperToolbox\Core\Loader    $loader    Maintains and registers all hooks for the plugin.
      */
     protected $loader;
 
@@ -59,19 +60,18 @@ class ModernWpPluginBoilerplate {
      * @since    1.0.0
      */
     public function __construct() {
-        $this->version = MODERN_WP_PLUGIN_BOILERPLATE_VERSION;
-        $this->pluginName = MODERN_WP_PLUGIN_BOILERPLATE_NAME;
+        $this->version = ONION_WORDPRESS_DEVELOPER_TOOLBOX_VERSION;
+        $this->pluginName = ONION_WORDPRESS_DEVELOPER_TOOLBOX_NAME;
 
         $this->loader = new Core\Loader();
         $this->setLocale();
-        $this->defineAdminHooks();
-        $this->definePublicHooks();
+        $this->defineCommandHooks();
     }
 
     /**
      * Define the locale for this plugin for internationalization.
      *
-     * Uses the ModernWpPluginBoilerplate\Core\Internationalisation class in order to set the domain and to register the hook
+     * Uses the OnionWordpressDeveloperToolbox\Core\Internationalisation class in order to set the domain and to register the hook
      * with WordPress.
      *
      * @since    1.0.0
@@ -91,40 +91,10 @@ class ModernWpPluginBoilerplate {
      * @since    1.0.0
      * @access   private
      */
-    private function defineAdminHooks()
+    private function defineCommandHooks()
     {
-        // Enqueue script / styles
-        $enqueue = new Admin\Enqueue($this->getPluginName(), $this->getVersion());
-        $this->loader->addAction('admin_enqueue_scripts', $enqueue, 'enqueueStyles');
-        $this->loader->addAction('admin_enqueue_scripts', $enqueue, 'enqueueScripts');
-
-        // Add the settings page
-        $settingsPage = new Admin\SettingsPage($this->getPluginName(), $this->getVersion());
-        $this->loader->addAction('admin_menu', $settingsPage, 'registerPage');
-        $this->loader->addAction('admin_init', $settingsPage, 'registerSettings');
-    }
-
-    /**
-     * Register all of the hooks related to the public-facing functionality
-     * of the plugin.
-     *
-     * @since    1.0.0
-     * @access   private
-     */
-    private function definePublicHooks()
-    {
-        // Enqueue scripts
-        $enqueue = new Frontend\Enqueue($this->getPluginName(), $this->getVersion());
-        $this->loader->addAction('wp_enqueue_scripts', $enqueue, 'enqueueStyles');
-        $this->loader->addAction('wp_enqueue_scripts', $enqueue, 'enqueueScripts');
-
-        // Shortcodes
-        $shortcodes = new Frontend\Shortcodes($this->getPluginName(), $this->getVersion());
-        $this->loader->addAction('init', $shortcodes, 'addShortcodes');
-
-        // API
-        $api = new Frontend\JsonApi($this->getPluginName(), $this->getVersion());
-        $this->loader->addAction('rest_api_init', $api, 'registerApiEndpoints');
+        $this->loader->addAction( 'cli_init', new JsonLdCommand( $this->pluginName, $this->version ), 'register' );
+        $this->loader->addAction( 'cli_init', new RedirectionAuditCommand( $this->pluginName, $this->version ), 'register' );
     }
 
     /**
@@ -153,7 +123,7 @@ class ModernWpPluginBoilerplate {
      * The reference to the class that orchestrates the hooks with the plugin.
      *
      * @since     1.0.0
-     * @return    ModernWpPluginBoilerplate\Core\Loader    Orchestrates the hooks of the plugin.
+     * @return    OnionWordpressDeveloperToolbox\Core\Loader    Orchestrates the hooks of the plugin.
      */
     public function getLoader()
     {

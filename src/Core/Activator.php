@@ -1,6 +1,6 @@
 <?php
 
-namespace ModernWpPluginBoilerplate\Core;
+namespace OnionWordpressDeveloperToolbox\Core;
 
 /**
  * Fired during plugin activation
@@ -8,8 +8,8 @@ namespace ModernWpPluginBoilerplate\Core;
  * @link       https://totalonion.com
  * @since      1.0.0
  *
- * @package    ModernWpPluginBoilerplate
- * @subpackage ModernWpPluginBoilerplate/Core
+ * @package    OnionWordpressDeveloperToolbox
+ * @subpackage OnionWordpressDeveloperToolbox/Core
  */
 
 /**
@@ -18,8 +18,8 @@ namespace ModernWpPluginBoilerplate\Core;
  * This class defines all code necessary to run during the plugin's activation.
  *
  * @since      1.0.0
- * @package    ModernWpPluginBoilerplate
- * @subpackage ModernWpPluginBoilerplate/Core
+ * @package    OnionWordpressDeveloperToolbox
+ * @subpackage OnionWordpressDeveloperToolbox/Core
  * @author     Ben Broadhurst <ben@totalonion.com>
  */
 class Activator {

@@ -1,6 +1,6 @@
 <?php
 
-namespace ModernWpPluginBoilerplate\Core;
+namespace OnionWordpressDeveloperToolbox\Core;
 
 /**
  * Define the internationalization functionality
@@ -11,8 +11,8 @@ namespace ModernWpPluginBoilerplate\Core;
  * @link       https://totalonion.com
  * @since      1.0.0
  *
- * @package    ModernWpPluginBoilerplate
- * @subpackage ModernWpPluginBoilerplate/Core
+ * @package    OnionWordpressDeveloperToolbox
+ * @subpackage OnionWordpressDeveloperToolbox/Core
  */
 
 /**
@@ -22,8 +22,8 @@ namespace ModernWpPluginBoilerplate\Core;
  * so that it is ready for translation.
  *
  * @since      1.0.0
- * @package    ModernWpPluginBoilerplate
- * @subpackage ModernWpPluginBoilerplate/Core
+ * @package    OnionWordpressDeveloperToolbox
+ * @subpackage OnionWordpressDeveloperToolbox/Core
  * @author     Ben Broadhurst <ben@totalonion.com>
  */
 class I18n
@@ -36,9 +36,9 @@ class I18n
     public function loadPluginTextdomain()
     {
         load_plugin_textdomain(
-            'modern-wp-plugin-boilerplate',
+            'onion-wordpress-developer-toolbox',
             false,
-            dirname(MODERN_WP_PLUGIN_BOILERPLATE_PLUGIN_FOLDER . '/languages/')
+            dirname(ONION_WORDPRESS_DEVELOPER_TOOLBOX_PLUGIN_FOLDER . '/languages/')
         );
     }
 }
