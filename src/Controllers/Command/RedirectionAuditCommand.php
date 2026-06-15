@@ -442,9 +442,7 @@ class RedirectionAuditCommand extends AbstractCommandController
             return;
         }
 
-        $url_to_test = $this->httpService->international_url_sanitize(
-            $this->httpService->get_base_url() . $redirect['url']
-        );
+        $url_to_test = $this->httpService->get_base_url() . $redirect['url'];
 
         // Add a trailing slash?
         if (
@@ -537,6 +535,8 @@ class RedirectionAuditCommand extends AbstractCommandController
         array $redirect_chain = []
         
     ):array {
+        $url = $this->httpService->international_url_sanitize( $url );
+
         // @throws WpHttpException on failure
         $this->httpService->is_target_url_valid( $url );
 

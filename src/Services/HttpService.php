@@ -103,16 +103,13 @@ class HttpService {
     }
 
     /**
-     * Wrapper for WP_Http, but with checks for internationalised URLs etc
+     * Wrapper for WP_Http
      * 
      * @param string|array Optional. Override the defaults.
      * @return array|WP_Error Array containing 'headers', 'body', 'response', 'cookies', 'filename'.
 	 *                        A WP_Error instance upon error. See WP_Http::response() for details.
      */
     public function get( string $url, string|array $options = [] ): array|WP_Error {
-        $url = $this->international_url_sanitize( $url );
-        $response = $this->request->get( $url, $options );
-
-        return $response;
+        return $this->request->get( $url, $options );
     }
 }
