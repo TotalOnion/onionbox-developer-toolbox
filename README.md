@@ -8,12 +8,13 @@ CLI toolbox for WP devs
 
 ### Redirection Audit
 
-`wp onionbox redirection-audit`
-
 Audit http redirects from the Redirection plugin to check for 404's, loops etc
 
 ```
-  wp onionbox redirection-audit [--module=<wordpress|apache|nginx|all>] [--max-redirects=<count>] [--max-age=<days>] [--verbose] [--ids=<id>...] [--match-url=<url>]
+  wp onionbox redirection-audit
+
+  [--export-only]
+    Just export the redirects from Redirection. Don't run the audit. All flags other than --module are irrelevant
 
   [--module=<wordpress|apache|nginx|all>]
     Which module to test. Defaults to 'all'
@@ -29,6 +30,12 @@ Audit http redirects from the Redirection plugin to check for 404's, loops etc
 
   [--ids=<id>...]
     Array of redirect IDs to test. Useful for retesting a subset from an earlier full audit
+  
+  [--id-from=<id>]
+    Start at <id> and continue
+ 
+  [--id-to=<id>]
+   End at <id>
 
   [--match-url=<url>]
     Check a single match-url. Copy and paste this into quotes from the Redirection page in wp-admin

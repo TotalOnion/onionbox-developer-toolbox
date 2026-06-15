@@ -4,8 +4,8 @@ namespace OnionWordpressDeveloperToolbox\Controllers\Command;
 
 use \DateTimeImmutable;
 use \WP_CLI;
-use \WP_Http;
 use OnionWordpressDeveloperToolbox\Exceptions\WpHttpException;
+use OnionWordpressDeveloperToolbox\Services\HttpService;
 
 class RedirectionAuditCommand extends AbstractCommandController
 {
@@ -27,8 +27,10 @@ class RedirectionAuditCommand extends AbstractCommandController
     private const LOG_AS_GOOD            = 'good';
     private const LOG_AS_WARNING         = 'warning';
     private const LOG_AS_BAD             = 'bad';
+    private const LOG_AS_OLD             = 'old';
+    private const LOG_AS_NEVER_HIT       = 'never-hit';
 
-    private string $base_url = '';
+    private ?HttpService $httpService;
     private string $redirection_export_file_location = '';
     private array $report = [
         'enabled' => [],
@@ -38,35 +40,27 @@ class RedirectionAuditCommand extends AbstractCommandController
         'is_bad' => [],
         'has_warnings' => [],
     ];
-    private ?WP_Http $request;
     private array $flags;
 
     /**
      * @inheritDoc
      */
     public function __construct( $pluginName, $version ) {
-        $this->request = new WP_Http; 
-
-        // don't use get_site_url() as that can be forced to be the true domain on sites split over multiple instances
-        if ( 
-            ($_ENV['LANDO_APP_NAME'] ?? false)
-            && ($_ENV['LANDO_DOMAIN'] ?? false)
-        ) {
-            $this->base_url = sprintf( 'https://%s.%s', $_ENV['LANDO_APP_NAME'], $_ENV['LANDO_DOMAIN'] );
-        } else {
-            $this->base_url = get_option( 'siteurl' );
-        }
-
-        parent::__construct($pluginName, $version);
+        $this->httpService = new HttpService;
+        parent::__construct( $pluginName, $version );
     }
 
     /**
      * Removes the temporary redirect export file on exit
      */
-    public function __destruct()
-    {
+    public function __destruct() {
+        if ( ! class_exists( 'WP_CLI' ) ) {
+            return;
+        }
+
         if (
-            $this->redirection_export_file_location
+            ! ( $this->flags['export-only'] ?? false )
+            && $this->redirection_export_file_location
             && file_exists( $this->redirection_export_file_location )
         ) {
             WP_CLI::log(
@@ -74,6 +68,19 @@ class RedirectionAuditCommand extends AbstractCommandController
             );
             wp_delete_file( $this->redirection_export_file_location );
         }
+
+        // If export-only, and the file exists. Show where it is
+        if (
+            ( $this->flags['export-only'] ?? false )
+            && $this->redirection_export_file_location
+            && file_exists( $this->redirection_export_file_location )
+        ) {
+            WP_CLI::log(
+                sprintf( 'Export only mode: the export can be found here %s.', $this->redirection_export_file_location )
+            );
+        }
+
+        WP_CLI::success( 'Done' );
     }
 
     /**
@@ -94,8 +101,17 @@ class RedirectionAuditCommand extends AbstractCommandController
      * [--ids=<id>...]
      * : Array of redirect IDs to test. Useful for retesting a subset from an earlier full audit
      * 
+     * [--id-from=<id>]
+     * : Start at <id> and continue
+     * 
+     * [--id-to=<id>]
+     * : End at <id>
+     * 
      * [--match-url=<url>]
      * : Check a single match-url. Copy and paste this into quotes from the Redirection page in wp-admin
+     * 
+     * [--export-only]
+     * : Just export the redirects from Redirection. Don't run the audit. All flags other than --module are irrelevant
      */
     public function __invoke( array $args, array $flags ):void
     {
@@ -107,7 +123,10 @@ class RedirectionAuditCommand extends AbstractCommandController
                 'max-redirects' => $this::DEFAULT_MAX_REDIRECTS,
                 'verbose'       => false,
                 'ids'           => [],
-                'match-url'  => null
+                'id-from'       => null,
+                'id-to'         => null,
+                'match-url'     => null,
+                'export-only'   => false,
             ]
         );
 
@@ -123,15 +142,18 @@ class RedirectionAuditCommand extends AbstractCommandController
         }
         WP_CLI::log( sprintf( 'Redirection plugin version %s', $redirection_data['plugin']['version'] ?? 'unknown' ) );
         WP_CLI::log( sprintf( 'Exported %d redirects', count( $redirection_data['redirects'] ) ) );
+        if ( $this->flags['export-only'] ) {
+            return;
+        }
 
         // Filter by flags if required
+        $redirection_data['redirects'] = $this->filter_results_by_id_range( $redirection_data['redirects'] );
         $redirection_data['redirects'] = $this->filter_results_by_ids( $redirection_data['redirects'] );
         $redirection_data['redirects'] = $this->filter_results_by_url( $redirection_data['redirects'] );
 
         WP_CLI::log('-------');
         $this->test_redirects( $redirection_data['redirects'] );
         $this->display_result_stats();
-        WP_CLI::success( 'Done' );
     }
 
     private function display_result_stats():void {
@@ -187,17 +209,29 @@ class RedirectionAuditCommand extends AbstractCommandController
                     implode(', ', self::VALID_MODULES )
                 )
             );
-            return false;
         }
 
         if ( $this->flags['ids'] ) {
             $this->flags['ids'] = explode( ',', $this->flags['ids'] );
-            foreach ( $this->flags['ids'] as &$flag ) {
-                $flag = (int)trim($flag);
-                if ( ! $flag ) {
+            foreach ( $this->flags['ids'] as &$id ) {
+                $id = (int)trim($id);
+                if ( ! $id ) {
                     WP_CLI::error( 'Invalid ID found. Expected a csv of ints.' );
-                    return false;
                 }
+            }
+        }
+
+        if ( $this->flags['id-from'] ) {
+            $this->flags['id-from'] = (int)$this->flags['id-from'];
+            if ( ! $this->flags['id-from'] ) {
+                WP_CLI::error( 'Non numeric value for --id-from' );
+            }
+        }
+
+        if ( $this->flags['id-to'] ) {
+            $this->flags['id-to'] = (int)$this->flags['id-to'];
+            if ( ! $this->flags['id-to'] ) {
+                WP_CLI::error( 'Non numeric value for --id-to' );
             }
         }
 
@@ -279,6 +313,34 @@ class RedirectionAuditCommand extends AbstractCommandController
         return $redirects;
     }
 
+        /**
+     * Filter the redirects that were exported to only include the IDs passed in by the --ids= flag
+     * 
+     * @param array $redirects
+     * @return array $filtered_redirects
+     */
+    private function filter_results_by_id_range( array $redirects ):array {
+        if ( ! $this->flags['id-from'] && ! $this->flags['id-to'] ) {
+            return $redirects;
+        }
+
+        $redirects = array_filter( $redirects, function( $redirect ) {
+                return 
+                    ( $redirect['id'] >= ( $this->flags['id-from'] ?? 0 ) )
+                    && ( $this->flags['id-to'] ? $redirect['id'] <= $this->flags['id-to'] : true );
+            }
+        );
+
+        WP_CLI::log(
+            sprintf(
+                'Results have been filtered to %d redirects using the --id-from / --id-to flags',
+                count( $redirects )
+            )
+        );
+
+        return $redirects;
+    }
+
     /**
      * Remove all redirects except the one referenced explicitly in the flag
      * 
@@ -286,11 +348,11 @@ class RedirectionAuditCommand extends AbstractCommandController
      * @return array $filtered_redirects
      */
     private function filter_results_by_url( array $redirects ):array {
-        if ( ! $this->flags['matching-url'] ) {
+        if ( ! $this->flags['match-url'] ) {
             return $redirects;
         }
 
-        $redirects = array_filter( $redirects, fn( $redirect ) => in_array( $redirect['match_url'], $this->flags['match-url'] ) );
+        $redirects = array_filter( $redirects, fn( $redirect ) => in_array( $redirect['url'], $this->flags['match-url'] ) );
 
         if ( ! count( $redirects ) ) {
             WP_CLI::error(
@@ -327,19 +389,16 @@ class RedirectionAuditCommand extends AbstractCommandController
                 continue;
             }
 
-            $this->report['enabled'] = $redirect;
+            $this->report['enabled'][] = $redirect;
 
             if ( $redirect['hits'] === 0 ) {
-                $this->report['never_hit'][] = $redirect;
+                $this->log( $redirect, self::LOG_AS_NEVER_HIT );
             } else {
                 $days_since_last_hit = $now->diff( new DateTimeImmutable( $redirect['last_access'] ?? 'now' ), true);
                 if ( $days_since_last_hit > $this->flags['max-age'] ) {
-                    $this->log( $redirect, self::LOG_AS_WARNING, sprintf( 'The redirect has not been hit in %d days. Consider removing.', $days_since_last_hit ) );
-                    $this->report['is_old'][] = $redirect;
+                    $this->log( $redirect, self::LOG_AS_OLD );
                 }
             }
-
-            print_r($redirect);
 
             switch( $redirect['match_type'] ?? '' ) {
                 case 'url':
@@ -364,11 +423,6 @@ class RedirectionAuditCommand extends AbstractCommandController
     {
         $has_warnings = false;
 
-        if ( ! ( $redirect['match_url'] ?? false ) ) {
-            $this->log( $redirect, self::LOG_AS_BAD, 'Bad or missing match_url in the redirect' );
-            return;
-        }
-
         if ( ( $redirect['match_data']['source']['flag_query'] ?? false ) !== 'exact' ) {
             $this->log(
                 $redirect,
@@ -378,12 +432,24 @@ class RedirectionAuditCommand extends AbstractCommandController
             return;
         }
 
-        $url_to_test = $this->base_url . $redirect['match_url'];
+        if ( ! ( $redirect['url'] ?? false ) ) {
+            $this->log( $redirect, self::LOG_AS_BAD, 'Bad or missing url in the redirect' );
+            return;
+        }
+
+        if ( strpos( $redirect['url'], '??' ) ) {
+            $this->log( $redirect, self::LOG_AS_BAD, 'Found "??" in the URL. This is usually unicode characters that have been imported causing this.' );
+            return;
+        }
+
+        $url_to_test = $this->httpService->international_url_sanitize(
+            $this->httpService->get_base_url() . $redirect['url']
+        );
 
         // Add a trailing slash?
         if (
             ($redirect['match_data']['source']['flag_trailing'] ?? false)
-            && substr($redirect['match_url'], -1, 1) !== '/'
+            && substr($redirect['url'], -1, 1) !== '/'
         ) {
             $url_to_test .= '/';
         }
@@ -422,22 +488,32 @@ class RedirectionAuditCommand extends AbstractCommandController
                 sprintf(
                     'Incorrect response code. Expected %s, received %s',
                     $redirect['action_code'] ?? 'unknown',
-                    $response['response']['code'] ?? 'unknown'
+                    $redirection_chain[0]['code'] ?? 'unknown'
                 )
             );
-            print_r($response['response']);
             return;
         }
 
-        $final_url = $redirection_chain[ count( $redirection_chain ) - 2 ]['location'] ?? false;
-        if ( $final_url !== ( $redirect['action_data']['url'] ?? true ) ) {
+        if ( ! ( $redirection_chain[ count( $redirection_chain ) - 2 ]['location']  ?? false ) ) {
+            $this->log( $redirect, self::LOG_AS_BAD, 'No final location URL received' );
+            return;
+        }
+
+        $final_url = $this->httpService->international_url_humanize(
+            $this->httpService->get_base_url() . $redirection_chain[ count( $redirection_chain ) - 2 ]['location']
+        );
+        $target_url_to_test_against = $this->httpService->international_url_humanize(
+            $this->httpService->get_base_url() . $redirect['action_data']['url']
+        );
+        
+        if ( $final_url !== $target_url_to_test_against ) {
             $this->log(
                 $redirect,
                 self::LOG_AS_BAD,
                 sprintf(
                     'Incorrect final destination. Expected %s, received %s',
-                    $redirect['action_data']['url'] ?? 'unknown',
-                    $final_url ?: 'unknown'
+                    $target_url_to_test_against,
+                    $final_url
                 )
             );
             return;
@@ -461,14 +537,8 @@ class RedirectionAuditCommand extends AbstractCommandController
         array $redirect_chain = []
         
     ):array {
-        if ( ! filter_var( $url, FILTER_VALIDATE_URL ) ) {
-            throw new WpHttpException(
-                sprintf(
-                    'URL "%s" in the chain is not valid.',
-                    $url,
-                )
-            );
-        }
+        // @throws WpHttpException on failure
+        $this->httpService->is_target_url_valid( $url );
 
         if ( count( $redirect_chain ) >= $this->flags['max-redirects'] ) {
             throw new WpHttpException(
@@ -479,7 +549,7 @@ class RedirectionAuditCommand extends AbstractCommandController
             );
         }
 
-        $response = $this->request->get( $url, [ 'redirection' => 0 ] );
+        $response = $this->httpService->get( $url, [ 'redirection' => 0 ] );
         if ( is_wp_error( $response ) ) {
             throw new WpHttpException(
                 sprintf(
@@ -504,7 +574,7 @@ class RedirectionAuditCommand extends AbstractCommandController
                 );
             }
             $redirect_chain = $this->evaluate_redirection_chain(
-                $this->base_url . $this_redirect['location'],
+                $this->httpService->get_base_url() . $this_redirect['location'],
                 $redirect_chain
             );
         }
@@ -521,13 +591,6 @@ class RedirectionAuditCommand extends AbstractCommandController
      */
     private function log( array $redirect, string $log_as, string $reason = '' ):void
     {
-        $message = sprintf(
-            'Redirect #%d, matching url "%s", is bad: %s',
-            $redirect['id'],
-            $redirect['match_url'] ?? 'url missing',
-            $reason
-        );
-
         switch ( $log_as ) {
             case self::LOG_AS_GOOD:
                 if ( $this->flags['verbose'] ) {
@@ -541,15 +604,47 @@ class RedirectionAuditCommand extends AbstractCommandController
                 }
                 break;
 
+            case self::LOG_AS_NEVER_HIT:
+                $this->report['never_hit'][] = $redirect;
+                WP_CLI::warning( sprintf(
+                    'Redirect #%d, matching url "%s", has never been hit',
+                    $redirect['id'],
+                    $redirect['url'] ?? 'url missing'
+                ) );
+                break;
+            
+            case self::LOG_AS_OLD:
+                $this->report['is_old'][] = $redirect;
+                WP_CLI::warning( sprintf(
+                    'Redirect #%d, matching url "%s", has not been hit in %d days. Consider removing.',
+                    $redirect['id'],
+                    $redirect['url'] ?? 'url missing',
+                    $this->flags['max-age']
+                ) );
+                break;
+
             case self::LOG_AS_WARNING:
                 $this->report['has_warnings'][] = $redirect;
-                WP_CLI::warning( $message );
+                WP_CLI::warning( sprintf(
+                    'Redirect #%d, matching url "%s", has warnings: %s',
+                    $redirect['id'],
+                    $redirect['url'] ?? 'url missing',
+                    $reason
+                ) );
                 break;
 
             case self::LOG_AS_BAD:
             default:
                 $this->report['is_bad'][] = $redirect;
-                WP_CLI::error( $message, false );
+                WP_CLI::error(
+                    sprintf(
+                        'Redirect #%d, matching url "%s", is bad: %s',
+                        $redirect['id'],
+                        $redirect['url'] ?? 'url missing',
+                        $reason
+                    ),
+                    false
+                );
                 break;
         }
     }
