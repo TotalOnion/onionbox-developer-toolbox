@@ -1,7 +1,29 @@
 {
-    "require": {
-        
-    },
-    "require-dev": {
+  "name": "totalonion/onionbox-developer-toolbox",
+  "description": "A series of CLI tools for Wordpress",
+  "type": "wordpress-plugin",
+  "license": "GPL-2.0",
+  "homepage": "https://totalonion.com",
+  "version": "1.0.0",
+  "authors": [
+    {
+      "name": "Total Onion",
+      "homepage": "https://totalonion.com"
     }
+  ],
+  "keywords": [
+    "wordpress",
+    "plugin",
+    "cli",
+    "developer"
+  ],
+  "require": {
+    "php": ">=8.0"
+  },
+  "require-dev": {
+
+  },
+  "extra": {
+    "installer-name": "onionbox-developer-toolbox"
+  }
 }
