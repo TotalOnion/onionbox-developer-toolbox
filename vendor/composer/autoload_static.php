@@ -11,12 +11,20 @@ class ComposerStaticInit933403920edc1f67fc46d922881de291
         array (
             'ML\\JsonLD\\' => 10,
         ),
+        'E' =>
+        array (
+            'EasyRdf\\' => 8,
+        ),
     );
 
     public static $prefixDirsPsr4 = array (
         'ML\\JsonLD\\' =>
         array (
             0 => __DIR__ . '/..' . '/ml/json-ld',
+        ),
+        'EasyRdf\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/easyrdf/easyrdf/lib',
         ),
     );
 

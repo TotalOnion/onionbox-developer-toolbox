@@ -7,7 +7,9 @@ use \WP_Http;
 use ML\JsonLD\Exception\JsonLdException;
 use ML\JsonLD\JsonLD;
 use OnionWordpressDeveloperToolbox\Exceptions\WpHttpException;
+use OnionWordpressDeveloperToolbox\Exceptions\LdJsonException;
 use OnionWordpressDeveloperToolbox\Services\HttpService;
+use OnionWordpressDeveloperToolbox\Validators\LdJson\LdJsonValidatorFactory;
 
 class LdJsonCommand extends AbstractCommandController
 {
@@ -18,6 +20,7 @@ class LdJsonCommand extends AbstractCommandController
     private const LOG_AS_BAD             = 'bad';
 
     private ?HttpService $http_service;
+    private ?LdJsonValidatorFactory $ld_json_validator_factory;
     private array $flags = [];
 
     /**
@@ -25,6 +28,7 @@ class LdJsonCommand extends AbstractCommandController
      */
     public function __construct( $pluginName, $version ) {
         $this->http_service = new HttpService;
+        $this->ld_json_validator_factory = new LdJsonValidatorFactory;
         parent::__construct( $pluginName, $version );
     }
 
@@ -48,7 +52,7 @@ class LdJsonCommand extends AbstractCommandController
         );
 
         try {
-            $this->test_url( $this->http_service->get_base_url() . $this->flags['target-path'] );
+            $this->test_path( $this->flags['target-path'] );
         } catch ( WpHttpException $e ) {
             // just re-throw for now.
             throw $e;
@@ -60,42 +64,99 @@ class LdJsonCommand extends AbstractCommandController
     /**
      * Run ld+json tests against a single URL
      * 
-     * @param string $url
+     * @param string $path
      * @throws WpHttpException
      */
-    private function test_url( string $url ) {
+    private function test_path( string $path ) {
         $response = $this->http_service->get(
-            $this->http_service->international_url_sanitize( $url )
+            $this->http_service->international_url_sanitize( $this->http_service->get_base_url() . $path )
         );
 
         if ( $response['response']['code'] !== WP_Http::OK ) {
             throw new WpHttpException(
-                sprintf( 'Non 200 response from %s, received %s instead.', $url,  $response['response']['code'] )
+                sprintf( 'Non 200 response from %s, received %s instead.', $path,  $response['response']['code'] )
             );
         }
 
-        $ld_json_snippets = [];
+        // Extract all matches
         preg_match_all( '/type="application\/ld\+json"[ ]*>([^<]+)/', $response['body'], $matches );
 
-        // Extract all matches, and merge any with identical IDs
-        if ( $matches ) {
-            foreach ( $matches[1] as $snippet ) {
-                $ld_json_snippets[] = JsonLD::getDocument( $snippet );
+        
+        if ( ! $matches ) {
+            $this->log( $path, self::LOG_AS_WARNING, 'No ld+json detected' );
+            return;
+        }
+
+        // Convert snippets to arrays
+        $ld_json_snippets = [];
+        foreach ( $matches[1] as $snippet ) {
+            try {
+                $ld_json = $this->ld_json_string_to_array( $snippet );
+                // Merge any snippets with identical @id values
+                if ( $ld_json_snippets[ $ld_json['@id'] ] ?? false ) {
+                    $ld_json_snippets[ $ld_json['@id'] ] = array_replace_recursive(
+                        $ld_json_snippets[ $ld_json['@id'] ],
+                        $ld_json
+                    );
+                } else {
+                    $ld_json_snippets[ $ld_json['@id'] ] = $ld_json;
+                }
+            } catch ( LdJsonException $e ) {
+                $this->log( $path, self::LOG_AS_BAD, $e->getMessage() );
             }
         }
 
-        print_r( $ld_json_snippets[0] );
+        // Convert the arrays to objects to test format - we don't then use the objects
+        foreach ( $ld_json_snippets  as $snippet ) {
+            try {
+                $snippet = JsonLD::getDocument( json_encode( $snippet ) );
+            } catch ( JsonLdException $e ) {
+                $this->log(
+                    $path,
+                    self::LOG_AS_BAD,
+                    sprintf( 'Failed to parse ld+json into a JsonLD object, error "%s"', $e->getMessage() )
+                );
+                continue;
+            }
+        }
+
+
+        foreach ( $ld_json_snippets as $ld_json_snippet ) {
+            //$ld_json_snippet['@type'] = 'Gahhhhhh';
+            $validator = $this->ld_json_validator_factory->instance( $ld_json_snippet );
+            $errors = $validator->validate();
+            if ( $errors ) {
+                $this->log(
+                    $path,
+                    self::LOG_AS_BAD,
+                    sprintf( 'ld+json failed validation. Errors: %s.', implode( ', ', $errors ) )
+                );
+            }
+        }
+
+        print_r( $ld_json_snippets );
         die;
+    }
+
+    private function ld_json_string_to_array( string $ld_json_string ): array {
+        $ld_json = json_decode( $ld_json_string, true );
+        if ( json_last_error() !== JSON_ERROR_NONE ) {
+            throw new LdJsonException(
+                sprintf( 'Failed to parse ld+json, error "%s"', json_last_error_msg() )
+            );
+        }
+
+        return $ld_json;
     }
 
     /**
      * Send info to STDOUT about the redirect
      * 
-     * @param array $redirect The array object from the Redirection export that the message is concerning
+     * @param string $path The absolute path this log entry relates to
      * @param string $log_as Enum of 'good', 'warning', 'bad'
      * @param string $reason An optional message to give further context
      */
-    private function log( array $path, string $log_as, string $reason = '' ):void
+    private function log( string $path, string $log_as, string $reason = '' ):void
     {
         switch ( $log_as ) {
             case self::LOG_AS_GOOD:
