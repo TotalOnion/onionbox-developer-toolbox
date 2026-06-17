@@ -2,7 +2,7 @@
 
 namespace OnionWordpressDeveloperToolbox;
 
-use OnionWordpressDeveloperToolbox\Controllers\Command\JsonLdCommand;
+use OnionWordpressDeveloperToolbox\Controllers\Command\LdJsonCommand;
 use OnionWordpressDeveloperToolbox\Controllers\Command\RedirectionAuditCommand;
 use OnionWordpressDeveloperToolbox\Core;
 use \WP_CLI;
@@ -93,7 +93,7 @@ class OnionWordpressDeveloperToolbox {
      */
     private function defineCommandHooks()
     {
-        $this->loader->addAction( 'cli_init', new JsonLdCommand( $this->pluginName, $this->version ), 'register' );
+        $this->loader->addAction( 'cli_init', new LdJsonCommand( $this->pluginName, $this->version ), 'register' );
         $this->loader->addAction( 'cli_init', new RedirectionAuditCommand( $this->pluginName, $this->version ), 'register' );
     }
 

@@ -6,6 +6,30 @@ namespace Composer\Autoload;
 
 class ComposerStaticInit933403920edc1f67fc46d922881de291
 {
+    public static $prefixLengthsPsr4 = array (
+        'M' =>
+        array (
+            'ML\\JsonLD\\' => 10,
+        ),
+    );
+
+    public static $prefixDirsPsr4 = array (
+        'ML\\JsonLD\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/ml/json-ld',
+        ),
+    );
+
+    public static $prefixesPsr0 = array (
+        'M' =>
+        array (
+            'ML\\IRI' =>
+            array (
+                0 => __DIR__ . '/..' . '/ml/iri',
+            ),
+        ),
+    );
+
     public static $classMap = array (
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
     );
@@ -13,6 +37,9 @@ class ComposerStaticInit933403920edc1f67fc46d922881de291
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
+            $loader->prefixLengthsPsr4 = ComposerStaticInit933403920edc1f67fc46d922881de291::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit933403920edc1f67fc46d922881de291::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInit933403920edc1f67fc46d922881de291::$prefixesPsr0;
             $loader->classMap = ComposerStaticInit933403920edc1f67fc46d922881de291::$classMap;
 
         }, null, ClassLoader::class);
