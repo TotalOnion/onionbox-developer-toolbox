@@ -8,6 +8,9 @@ use OnionWordpressDeveloperToolbox\Exceptions\LdJsonException;
 
 class LdJsonValidatorFactory {
 
+    public const VALIDATOR_TYPE_RECIPE  = 'Recipe';
+    public const VALIDATOR_TYPE_PRODUCT = 'Product';
+
     private ?Graph $graph;
 
     public function __construct()
@@ -25,8 +28,11 @@ class LdJsonValidatorFactory {
         }
 
         switch ( $ld_json['@type'] ) {
-            case 'Recipe':
+            case self::VALIDATOR_TYPE_RECIPE:
                 return new LdJsonRecipeValidator( $this->graph, $ld_json );
+            
+            case self::VALIDATOR_TYPE_PRODUCT:
+                return new LdJsonProductValidator( $this->graph, $ld_json );
             
             default:
                 throw new LdJsonException( sprintf( 'No validator found for @type %s', $ld_json['@type'] ) );

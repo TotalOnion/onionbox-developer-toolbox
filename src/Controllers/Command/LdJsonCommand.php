@@ -18,9 +18,10 @@ class LdJsonCommand extends AbstractCommandController
 {
     const COMMAND_NAME = 'ldjson';
 
-    private const LOG_AS_GOOD            = 'good';
-    private const LOG_AS_WARNING         = 'warning';
-    private const LOG_AS_BAD             = 'bad';
+    private const LOG_AS_GOOD    = 'good';
+    private const LOG_AS_WARNING = 'warning';
+    private const LOG_AS_BAD     = 'bad';
+    private const LOG_AS_INFO    = 'info';
 
     private ?DatabaseService $database_service;
     private ?HttpService $http_service;
@@ -40,37 +41,52 @@ class LdJsonCommand extends AbstractCommandController
     /**
      * Checks URLs for valid ld+json Structured data
      * 
-     * [--target-post-type=<post-type>]
-     * : Test all of a post type
+     * [--target-post-types=<post-type>...]
+     * : Test all of a post type. Pass in a csv to do multiple
      * 
      * [--target-path=<path>]
      * : Test a specific path
+     * 
+     * [--target-ids=<ids>...]
+     * : Test a specific post ID. Pass in a csv for multiple.
      * 
      * [--follow-links]
      * : Follow things like image links to see if they are resolving correctly
      * 
      * [--verbose]
      * : Show passes as well as failures, and extra info in general.
+     * 
+     * [--vverbose]
+     * : Dump out the ld+json etc. Only use this if you are testing individual posts, or you really like large log files
      */
     public function __invoke( array $args, array $flags )
     {
         $this->flags = wp_parse_args(
             $flags,
             array(
-                'target-post-type'  => null,
+                'target-post-types' => null,
                 'target-path'       => null,
+                'target-ids'        => null,
                 'follow-links'      => false,
                 'verbose'           => false,
+                'vverbose'          => false,
             )
         );
+
+        // If you want very verbose, you gotta have verbose too.
+        if ( $this->flags['vverbose'] ) {
+            $this->flags['verbose'] = true;
+        }
 
         // Let's fetch some things to test
         $targets = [];
         try {
             if ( $this->flags['target-path'] ) {
                 $targets[] = $this->database_service->get_post_by_url( $this->flags['target-path'] );
-            } elseif( $this->flags['target-post-type'] ) {
-                $targets = $this->database_service->get_posts_by_type( $this->flags['target-post-type'] );
+            } elseif( $this->flags['target-post-types'] ) {
+                $targets = $this->database_service->get_posts_by_types( explode( ',',$this->flags['target-post-types'] ) );
+            } elseif( $this->flags['target-ids'] ) {
+                $targets = $this->database_service->get_posts_by_ids( explode( ',',$this->flags['target-ids'] ) );
             }
         } catch ( WpDatabaseException $e ) {
             WP_CLI::error( 'Failed to load targets. Error %s', $e->getMessage() );
@@ -97,8 +113,6 @@ class LdJsonCommand extends AbstractCommandController
                 );
             }
         }
-
-        WP_CLI::success( 'Done' );
     }
 
     /**
@@ -108,18 +122,14 @@ class LdJsonCommand extends AbstractCommandController
      * @throws WpHttpException
      */
     private function test_post( WP_Post $post ) {
-        // $this->http_service->international_url_sanitize( $this->http_service->get_base_url() . $path )
-        $url = get_page_uri( $post );
-        echo '-----'.PHP_EOL;
-        echo $url.PHP_EOL;
-        echo '-----'.PHP_EOL;
+        $url = $this->http_service->get_post_permalink( $post );
         $response = $this->http_service->get( $url );
         if ( is_wp_error( $response ) ) {
             throw new WpHttpException(
                 sprintf( 'WP_Error received from "%s". Message "%s".', $url,  $response->get_error_message() )
             );
         }
-        
+
         if ( $response['response']['code'] !== WP_Http::OK ) {
             throw new WpHttpException(
                 sprintf( 'Non 200 response from %s, received %s instead.', $url,  $response['response']['code'] )
@@ -136,6 +146,7 @@ class LdJsonCommand extends AbstractCommandController
 
         // Convert snippets to arrays
         $ld_json_snippets = [];
+        $this->log( $post, self::LOG_AS_INFO, sprintf( 'Found %d snippets', count( $matches[1] ) ) );
         foreach ( $matches[1] as $snippet ) {
             try {
                 $ld_json = $this->ld_json_string_to_array( $snippet );
@@ -153,6 +164,10 @@ class LdJsonCommand extends AbstractCommandController
             }
         }
 
+        if ( count( $matches[1] ) !== count( $ld_json_snippets ) ) {
+            $this->log( $post, self::LOG_AS_INFO, sprintf( 'Used @id to merge down to %d', count( $ld_json_snippets ) ) );
+        }
+
         // Convert the arrays to objects to test format - we don't then use the objects
         foreach ( $ld_json_snippets  as $snippet ) {
             try {
@@ -167,7 +182,7 @@ class LdJsonCommand extends AbstractCommandController
             }
         }
 
-
+        $total_error_count = 0;
         foreach ( $ld_json_snippets as $ld_json_snippet ) {
             $validator = $this->ld_json_validator_factory->instance( $ld_json_snippet );
             $validator->set_flags( $this->flags );
@@ -180,9 +195,14 @@ class LdJsonCommand extends AbstractCommandController
                     $errors
                 );
             }
+            $total_error_count += count( $errors );
         }
 
-        die;
+        if ( $total_error_count ) {
+            $this->log( $post, self::LOG_AS_INFO, sprintf( '%d errors across %d snippets discovered.', $total_error_count, count( $ld_json_snippets ) ) );
+        } else {
+            $this->log( $post, self::LOG_AS_GOOD );
+        }
     }
 
     private function ld_json_string_to_array( string $ld_json_string ): array {
@@ -193,7 +213,22 @@ class LdJsonCommand extends AbstractCommandController
             );
         }
 
-        return $ld_json;
+        return $this->remove_empty_array_values_recursively( $ld_json );
+    }
+
+    private function remove_empty_array_values_recursively( array $array ): array {
+        foreach( array_keys( $array ) as $key ) {
+            if ( ! $array[ $key ] ) {
+                unset( $array[ $key ] );
+                continue;
+            }
+
+            if( is_array( $array[ $key ] ) ) {
+                $array[ $key ] = $this->remove_empty_array_values_recursively( $array[ $key ] );
+            }
+        }
+
+        return $array;
     }
 
     /**
@@ -206,6 +241,18 @@ class LdJsonCommand extends AbstractCommandController
     private function log( WP_Post $post, string $log_as, string $reason = '', $error_array = [] ):void
     {
         switch ( $log_as ) {
+            case self::LOG_AS_INFO:
+                if ( $this->flags['verbose'] ) {
+                    WP_CLI::log(
+                        sprintf(
+                            '%d: Info: %s',
+                            $post->ID,
+                            $reason
+                        )
+                    );
+                }
+                break;
+
             case self::LOG_AS_GOOD:
                 if ( $this->flags['verbose'] ) {
                     WP_CLI::log(

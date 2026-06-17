@@ -43,5 +43,29 @@ Audit http redirects from the Redirection plugin to check for 404's, loops etc
 
 ### ld+json audit & validator
 
-This currently uses the latest schema RDF from schema.org:
+Checks URLs for valid ld+json Structured data
+
+This currently uses the latest schema RDF from schema.org, saved to src/Validators/LdJson:
 https://github.com/schemaorg/schemaorg/blob/main/data/releases/30.0/schemaorg-current-https.ttl
+
+```
+  wp onionbox ldjson 
+
+  [--target-post-types=<post-type>...]
+    Test all of a post type. Pass in a csv to do multiple
+
+  [--target-path=<path>]
+    Test a specific path
+
+  [--target-ids=<ids>...]
+    Test a specific post ID. Pass in a csv for multiple.
+
+  [--follow-links]
+    Follow things like image links to see if they are resolving correctly
+
+  [--verbose]
+    Show passes as well as failures, and extra info in general.
+
+  [--vverbose]
+    Dump out the ld+json etc. Only use this if you are testing individual posts, or you really like large log files
+```

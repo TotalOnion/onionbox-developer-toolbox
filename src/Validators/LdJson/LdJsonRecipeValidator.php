@@ -10,9 +10,4 @@ class LdJsonRecipeValidator extends LdJsonValidator {
         'recipeInstructions' => LdJsonValidator::FIELD_TYPE_ARRAY,
 
     ];
-
-    public function validate():array {
-        $errors = parent::validate();
-        return $errors;
-    }
 }

@@ -12,11 +12,13 @@ class LdJsonValidator {
 
     protected const REQUIRED_FIELDS = [];
 
-    public const FIELD_TYPE_URL = 'url';
-    public const FIELD_TYPE_ARRAY = 'array';
-    public const VALID_FIELD_TYPES = [
+    public const FIELD_TYPE_URL     = 'url';
+    public const FIELD_TYPE_ARRAY   = 'array';
+    public const FIELD_TYPE_STRING  = 'string';
+    public const VALID_FIELD_TYPES  = [
         self::FIELD_TYPE_URL,
         self::FIELD_TYPE_ARRAY,
+        self::FIELD_TYPE_STRING,
     ];
 
     protected ?HttpService $http_service;
@@ -31,11 +33,21 @@ class LdJsonValidator {
     }
 
     public function validate():array {
+        if ( $this->flags['vverbose'] ) {
+            print_r( $this->ld_json );
+        }
+
         $errors = $this->validate_json_ld_node( $this->ld_json );
         $errors = $this->check_required_fields( $errors );
         return $errors;
     }
 
+    /**
+     * Check any REQUIRED_FIELDS that are set in the descendent class
+     * 
+     * @param array $errors
+     * @return array
+     */
     private function check_required_fields( $errors = [] ):array {
         foreach( $this::REQUIRED_FIELDS as $key => $variable_type ) {
             
@@ -83,6 +95,11 @@ class LdJsonValidator {
                         $errors[] = sprintf( 'Field %s is expected to be an array, but is %s', $key, gettype( $this->ld_json[ $key ] ) );
                     }
                     break;
+                
+                case self::FIELD_TYPE_STRING:
+                    if ( gettype( $this->ld_json[ $key ] ) !== 'string' ) {
+                        $errors[] = sprintf( 'Field %s is expected to be a string, but is %s', $key, gettype( $this->ld_json[ $key ] ) );
+                    }
 
             }
         }

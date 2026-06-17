@@ -5,6 +5,7 @@ namespace OnionWordpressDeveloperToolbox\Services;
 use \WP_Error;
 use \WP_Http;
 use OnionWordpressDeveloperToolbox\Exceptions\WpHttpException;
+use WP_Post;
 
 class HttpService {
     private ?WP_Http $request;
@@ -25,10 +26,21 @@ class HttpService {
         }
     }
 
+    public function get_post_permalink( WP_Post $post ):string {
+        $permalink = get_post_permalink( $post );
+        if ( 
+            ($_ENV['LANDO_APP_NAME'] ?? false)
+            && ($_ENV['LANDO_DOMAIN'] ?? false)
+        ) {
+            $permalink = preg_replace( '/https:\/\/([^\/]+)/', $this->get_base_url(), $permalink );
+        }
+        
+        return $permalink;
+    }
+
     public function get_base_url(): string {
         return $this->base_url;
     }
-
 
     /**
      * Check if a URL is valid to make requests to

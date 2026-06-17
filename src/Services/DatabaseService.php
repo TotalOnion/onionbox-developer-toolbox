@@ -32,14 +32,43 @@ class DatabaseService {
         return $post;
     }
 
-    public function get_posts_by_type( string $post_type ):array {
-        $posts = get_posts([
-            'post_type' => $post_type,
-            'post_status' => 'publish',
-            'numberposts' => 1
-        ]);
+    /**
+     * Takes an array of post type names, and returns all matching WP_Posts
+     * 
+     * @param array $post_types
+     * @return array
+     */
+    public function get_posts_by_types( array $post_types ):array {
+        $posts = [];
+        foreach( $post_types as $post_type ) {
+            $posts = array_merge(
+                $posts,
+                get_posts([
+                    'post_type' => trim( $post_type ),
+                    'post_status' => 'publish',
+                    'numberposts' => -1
+                ])
+            );
+        }
 
-        print_r($posts);
+        return $posts;
+    }
+
+    /**
+     * Takes an array of post ids, and returns all matching WP_Posts
+     * 
+     * @param array $ids
+     * @return array
+     */
+    public function get_posts_by_ids( array $ids ):array {
+        $posts = [];
+        foreach( $ids as $id ) {
+            $post = get_post( $id );
+            if ( $post instanceof WP_Post ) {
+                $posts[] = $post;
+            }
+        }
+
         return $posts;
     }
 }
