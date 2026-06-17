@@ -29,7 +29,8 @@ class LdJsonValidatorFactory {
                 return new LdJsonRecipeValidator( $this->graph, $ld_json );
             
             default:
-                return new LdJsonValidator( $this->graph, $ld_json );
+                throw new LdJsonException( sprintf( 'No validator found for @type %s', $ld_json['@type'] ) );
+                //return new LdJsonValidator( $this->graph, $ld_json );
         }
     }
 

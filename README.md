@@ -40,3 +40,8 @@ Audit http redirects from the Redirection plugin to check for 404's, loops etc
   [--match-url=<url>]
     Check a single match-url. Copy and paste this into quotes from the Redirection page in wp-admin
 ```
+
+### ld+json audit & validator
+
+This currently uses the latest schema RDF from schema.org:
+https://github.com/schemaorg/schemaorg/blob/main/data/releases/30.0/schemaorg-current-https.ttl

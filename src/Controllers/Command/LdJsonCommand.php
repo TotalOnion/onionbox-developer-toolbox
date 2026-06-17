@@ -2,14 +2,17 @@
 
 namespace OnionWordpressDeveloperToolbox\Controllers\Command;
 
-use \WP_CLI;
-use \WP_Http;
 use ML\JsonLD\Exception\JsonLdException;
 use ML\JsonLD\JsonLD;
-use OnionWordpressDeveloperToolbox\Exceptions\WpHttpException;
+use OnionWordpressDeveloperToolbox\Exceptions\WpDatabaseException;
 use OnionWordpressDeveloperToolbox\Exceptions\LdJsonException;
+use OnionWordpressDeveloperToolbox\Exceptions\WpHttpException;
+use OnionWordpressDeveloperToolbox\Services\DatabaseService;
 use OnionWordpressDeveloperToolbox\Services\HttpService;
 use OnionWordpressDeveloperToolbox\Validators\LdJson\LdJsonValidatorFactory;
+use WP_CLI;
+use WP_Http;
+use WP_Post;
 
 class LdJsonCommand extends AbstractCommandController
 {
@@ -19,6 +22,7 @@ class LdJsonCommand extends AbstractCommandController
     private const LOG_AS_WARNING         = 'warning';
     private const LOG_AS_BAD             = 'bad';
 
+    private ?DatabaseService $database_service;
     private ?HttpService $http_service;
     private ?LdJsonValidatorFactory $ld_json_validator_factory;
     private array $flags = [];
@@ -27,6 +31,7 @@ class LdJsonCommand extends AbstractCommandController
      * @inheritDoc
      */
     public function __construct( $pluginName, $version ) {
+        $this->database_service = new DatabaseService;
         $this->http_service = new HttpService;
         $this->ld_json_validator_factory = new LdJsonValidatorFactory;
         parent::__construct( $pluginName, $version );
@@ -35,8 +40,14 @@ class LdJsonCommand extends AbstractCommandController
     /**
      * Checks URLs for valid ld+json Structured data
      * 
+     * [--target-post-type=<post-type>]
+     * : Test all of a post type
+     * 
      * [--target-path=<path>]
      * : Test a specific path
+     * 
+     * [--follow-links]
+     * : Follow things like image links to see if they are resolving correctly
      * 
      * [--verbose]
      * : Show passes as well as failures, and extra info in general.
@@ -46,16 +57,45 @@ class LdJsonCommand extends AbstractCommandController
         $this->flags = wp_parse_args(
             $flags,
             array(
-                'target-path' => null,
-                'verbose'     => false,
+                'target-post-type'  => null,
+                'target-path'       => null,
+                'follow-links'      => false,
+                'verbose'           => false,
             )
         );
 
+        // Let's fetch some things to test
+        $targets = [];
         try {
-            $this->test_path( $this->flags['target-path'] );
-        } catch ( WpHttpException $e ) {
-            // just re-throw for now.
-            throw $e;
+            if ( $this->flags['target-path'] ) {
+                $targets[] = $this->database_service->get_post_by_url( $this->flags['target-path'] );
+            } elseif( $this->flags['target-post-type'] ) {
+                $targets = $this->database_service->get_posts_by_type( $this->flags['target-post-type'] );
+            }
+        } catch ( WpDatabaseException $e ) {
+            WP_CLI::error( 'Failed to load targets. Error %s', $e->getMessage() );
+        } catch ( \Exception $e ) {
+            WP_CLI::error( 'Uncaught fatal exception. Error %s', $e->getMessage() );
+        }
+
+        if ( ! $targets ) {
+            WP_CLI::warning( 'No matching targets found' );
+            return;
+        }
+
+        WP_CLI::log( sprintf( 'Checking %d targets', count( $targets ) ) );
+
+        // Lets do some testing
+        foreach( $targets as $post ) {
+            try {
+                $this->test_post( $post );
+            } catch ( WpHttpException $e ) {
+                $this->log(
+                    $post,
+                    self::LOG_AS_BAD,
+                    $e->getMessage()
+                );
+            }
         }
 
         WP_CLI::success( 'Done' );
@@ -64,26 +104,33 @@ class LdJsonCommand extends AbstractCommandController
     /**
      * Run ld+json tests against a single URL
      * 
-     * @param string $path
+     * @param WP_Post $post
      * @throws WpHttpException
      */
-    private function test_path( string $path ) {
-        $response = $this->http_service->get(
-            $this->http_service->international_url_sanitize( $this->http_service->get_base_url() . $path )
-        );
-
+    private function test_post( WP_Post $post ) {
+        // $this->http_service->international_url_sanitize( $this->http_service->get_base_url() . $path )
+        $url = get_page_uri( $post );
+        echo '-----'.PHP_EOL;
+        echo $url.PHP_EOL;
+        echo '-----'.PHP_EOL;
+        $response = $this->http_service->get( $url );
+        if ( is_wp_error( $response ) ) {
+            throw new WpHttpException(
+                sprintf( 'WP_Error received from "%s". Message "%s".', $url,  $response->get_error_message() )
+            );
+        }
+        
         if ( $response['response']['code'] !== WP_Http::OK ) {
             throw new WpHttpException(
-                sprintf( 'Non 200 response from %s, received %s instead.', $path,  $response['response']['code'] )
+                sprintf( 'Non 200 response from %s, received %s instead.', $url,  $response['response']['code'] )
             );
         }
 
         // Extract all matches
         preg_match_all( '/type="application\/ld\+json"[ ]*>([^<]+)/', $response['body'], $matches );
-
         
         if ( ! $matches ) {
-            $this->log( $path, self::LOG_AS_WARNING, 'No ld+json detected' );
+            $this->log( $post, self::LOG_AS_WARNING, 'No ld+json detected' );
             return;
         }
 
@@ -102,7 +149,7 @@ class LdJsonCommand extends AbstractCommandController
                     $ld_json_snippets[ $ld_json['@id'] ] = $ld_json;
                 }
             } catch ( LdJsonException $e ) {
-                $this->log( $path, self::LOG_AS_BAD, $e->getMessage() );
+                $this->log( $post, self::LOG_AS_BAD, $e->getMessage() );
             }
         }
 
@@ -112,7 +159,7 @@ class LdJsonCommand extends AbstractCommandController
                 $snippet = JsonLD::getDocument( json_encode( $snippet ) );
             } catch ( JsonLdException $e ) {
                 $this->log(
-                    $path,
+                    $post,
                     self::LOG_AS_BAD,
                     sprintf( 'Failed to parse ld+json into a JsonLD object, error "%s"', $e->getMessage() )
                 );
@@ -122,19 +169,19 @@ class LdJsonCommand extends AbstractCommandController
 
 
         foreach ( $ld_json_snippets as $ld_json_snippet ) {
-            //$ld_json_snippet['@type'] = 'Gahhhhhh';
             $validator = $this->ld_json_validator_factory->instance( $ld_json_snippet );
+            $validator->set_flags( $this->flags );
             $errors = $validator->validate();
             if ( $errors ) {
                 $this->log(
-                    $path,
+                    $post,
                     self::LOG_AS_BAD,
-                    sprintf( 'ld+json failed validation. Errors: %s.', implode( ', ', $errors ) )
+                    sprintf( 'ld+json failed validation. Errors: %s.', implode( ', ', $errors ) ),
+                    $errors
                 );
             }
         }
 
-        print_r( $ld_json_snippets );
         die;
     }
 
@@ -156,15 +203,15 @@ class LdJsonCommand extends AbstractCommandController
      * @param string $log_as Enum of 'good', 'warning', 'bad'
      * @param string $reason An optional message to give further context
      */
-    private function log( string $path, string $log_as, string $reason = '' ):void
+    private function log( WP_Post $post, string $log_as, string $reason = '', $error_array = [] ):void
     {
         switch ( $log_as ) {
             case self::LOG_AS_GOOD:
                 if ( $this->flags['verbose'] ) {
                     WP_CLI::log(
                         sprintf(
-                            '%s: passed.',
-                            $path
+                            '%d: passed.',
+                            $post->ID
                         )
                     );
                 }
@@ -172,8 +219,8 @@ class LdJsonCommand extends AbstractCommandController
 
             case self::LOG_AS_WARNING:
                 WP_CLI::warning( sprintf(
-                    '%s: warning: %s',
-                    $path,
+                    '%d: warning: %s',
+                    $post->ID,
                     $reason
                 ) );
                 break;
@@ -182,13 +229,19 @@ class LdJsonCommand extends AbstractCommandController
             default:
                 WP_CLI::error(
                     sprintf(
-                        '%s: has errors: %s',
-                        $path,
+                        '%d: has errors: %s',
+                        $post->ID,
                         $reason
                     ),
                     false
                 );
                 break;
+        }
+
+        if ( $this->flags['verbose'] && $error_array ) {
+            foreach( $error_array as $error ) {
+                WP_CLI::log( "\t" . $error );
+            }
         }
     }
 }

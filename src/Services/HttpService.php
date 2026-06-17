@@ -37,11 +37,11 @@ class HttpService {
      * @return bool
      * @throws WpHttpException
      */
-    public function is_target_url_valid( string $url ):bool {
+    public static function is_target_url_valid( string $url ):bool {
         if ( ! filter_var( $url, FILTER_VALIDATE_URL ) ) {
             throw new WpHttpException(
                 sprintf(
-                    'URL "%s" in the chain is not valid.',
+                    'URL "%s" is not valid.',
                     $url,
                 )
             );

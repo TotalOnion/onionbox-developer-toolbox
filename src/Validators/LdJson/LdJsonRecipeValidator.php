@@ -4,8 +4,15 @@ namespace OnionWordpressDeveloperToolbox\Validators\LdJson;
 
 class LdJsonRecipeValidator extends LdJsonValidator {
 
-    public function validate() {
-        $errors = $this->validate_json_ld_node( $this->ld_json );
+    protected const REQUIRED_FIELDS = [
+        'image'              => LdJsonValidator::FIELD_TYPE_URL,
+        'recipeIngredient'   => LdJsonValidator::FIELD_TYPE_ARRAY,
+        'recipeInstructions' => LdJsonValidator::FIELD_TYPE_ARRAY,
+
+    ];
+
+    public function validate():array {
+        $errors = parent::validate();
         return $errors;
     }
 }
