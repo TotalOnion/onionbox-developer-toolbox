@@ -34,7 +34,7 @@ class LdJsonValidator {
 
     public function validate():array {
         if ( $this->flags['vverbose'] ) {
-            print_r( $this->ld_json );
+            var_dump( $this->ld_json );
         }
 
         $errors = $this->validate_json_ld_node( $this->ld_json );
