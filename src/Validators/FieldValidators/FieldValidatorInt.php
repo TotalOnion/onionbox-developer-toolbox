@@ -13,6 +13,6 @@ class FieldValidatorArray extends FieldValidatorAbstract {
             );
         }
 
-        return true;
+        return $this->has_passed_validation = true;
     }
 }

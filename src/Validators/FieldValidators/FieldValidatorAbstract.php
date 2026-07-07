@@ -6,6 +6,8 @@ use OnionWordpressDeveloperToolbox\Exceptions\FieldValidatorException;
 
 abstract class FieldValidatorAbstract {
 
+    protected bool $has_passed_validation = false;
+
     public function __construct(
         public readonly string $key,
         protected readonly array $config,
@@ -18,5 +20,9 @@ abstract class FieldValidatorAbstract {
                 $this->key
             )
         );
+    }
+
+    public function is_valid(): bool {
+        return $this->has_passed_validation;
     }
 }

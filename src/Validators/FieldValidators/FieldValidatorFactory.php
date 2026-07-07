@@ -7,15 +7,20 @@ use OnionWordpressDeveloperToolbox\Validators\FieldValidators\FieldValidatorAbst
 
 class FieldValidatorFactory {
     private const VALIDATOR_BASE_CLASSNAME = 'OnionWordpressDeveloperToolbox\Validators\FieldValidators\FieldValidator';
-    public const FIELD_TYPE_ARRAY   = 'Array';
-    public const FIELD_TYPE_INT     = 'Int';
-    public const FIELD_TYPE_SCHEMA  = 'Schema';
-    public const FIELD_TYPE_STRING  = 'String';
-    public const FIELD_TYPE_URL     = 'Url';
+
+    public const FIELD_TYPE_ARRAY        = 'Array';
+    public const FIELD_TYPE_INT          = 'Int';
+    public const FIELD_TYPE_SCHEMA       = 'Schema';
+    public const FIELD_TYPE_STRING       = 'String';
+    public const FIELD_TYPE_STRING_FLOAT = 'StringFloat';
+    public const FIELD_TYPE_STRING_INT   = 'StringInt';
+    public const FIELD_TYPE_URL          = 'Url';
     public const VALID_FIELD_TYPES  = [
         self::FIELD_TYPE_ARRAY,
         self::FIELD_TYPE_INT,
         self::FIELD_TYPE_SCHEMA,
+        self::FIELD_TYPE_STRING_FLOAT,
+        self::FIELD_TYPE_STRING_INT,
         self::FIELD_TYPE_STRING,
         self::FIELD_TYPE_URL,
     ];

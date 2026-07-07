@@ -12,18 +12,27 @@ abstract class LdJsonValidator {
 
     protected const SCHEMA_NAME = '';
     protected const REQUIRED_FIELDS = [];
+    protected const OPTIONAL_FIELDS = [];
 
     protected array $required_fields = [];
+    protected array $optional_fields = [];
 
     protected ?HttpService $http_service;
     protected array $flags = [];
 
-    public function __construct( protected Graph $graph, protected array $ld_json ) {
+    public function __construct(
+        protected Graph $graph,
+        protected array $ld_json,
+        protected bool $is_sub_schema = false
+    ) {
         $this->http_service = new HttpService();
 
         try {
             foreach ( $this::REQUIRED_FIELDS as $field_key => $field_config ) {
                 $this->required_fields[ $field_key ] = FieldValidatorFactory::instance( $field_key, $field_config );
+            }
+            foreach ( $this::OPTIONAL_FIELDS as $field_key => $field_config ) {
+                $this->optional_fields[ $field_key ] = FieldValidatorFactory::instance( $field_key, $field_config );
             }
         } catch ( \Exception $e ) {
             // rethrow a generic exception as an LdJsonException
@@ -62,6 +71,18 @@ abstract class LdJsonValidator {
         foreach( $this->required_fields as $key => $field_validator ) {
             if ( ! array_key_exists( $key, $this->ld_json ) ) {
                 $errors[] = sprintf( 'Missing required fields "%s"', $key );
+                continue;
+            }
+
+            try {
+                $field_validator->validate( $this->ld_json[ $key ], $this->flags );
+            } catch ( FieldValidatorException $e ) {
+                $errors[] = $e->getMessage();
+            }
+        }
+
+        foreach( $this->optional_fields as $key => $field_validator ) {
+            if ( ! array_key_exists( $key, $this->ld_json ) ) {
                 continue;
             }
 

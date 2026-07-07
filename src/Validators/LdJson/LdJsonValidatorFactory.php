@@ -9,6 +9,7 @@ use OnionWordpressDeveloperToolbox\Exceptions\LdJsonException;
 class LdJsonValidatorFactory {
 
     private const BASE_VALIDATOR_CLASSNAME = 'OnionWordpressDeveloperToolbox\Validators\LdJson\LdJson%sValidator';
+    public const SET_AS_SUB_SCHEMA = true;
 
     public const VALIDATOR_TYPE_BRAND   = 'Brand';
     public const VALIDATOR_TYPE_OFFER   = 'Offer';
@@ -32,7 +33,7 @@ class LdJsonValidatorFactory {
         $this->graph->parseFile(__DIR__ . '/schemaorg-current-https.ttl', 'turtle');
     }
 
-    public function instance( array $ld_json ):LdJsonValidator {
+    public function instance( array $ld_json, bool $is_sub_schema = false ):LdJsonValidator {
         if ( ! array_key_exists( '@type', $ld_json ) ) {
             throw new LdJsonException( 'No @type found in the ld+json' );
         }
@@ -42,7 +43,7 @@ class LdJsonValidatorFactory {
         }
 
         $classname = sprintf( self::BASE_VALIDATOR_CLASSNAME, $ld_json['@type'] );
-        return new $classname( $this->graph, $ld_json );
+        return new $classname( $this->graph, $ld_json, $is_sub_schema );
     }
 
 }

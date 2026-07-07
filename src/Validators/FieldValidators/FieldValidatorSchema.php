@@ -18,7 +18,7 @@ class FieldValidatorSchema extends FieldValidatorAbstract {
             );
         }
 
-        $ld_json_validator = ( new LdJsonValidatorFactory )->instance( $value );
+        $ld_json_validator = ( new LdJsonValidatorFactory )->instance( $value, LdJsonValidatorFactory::SET_AS_SUB_SCHEMA );
         $errors = $ld_json_validator->validate();
 
         if ( $errors ) {
@@ -31,6 +31,6 @@ class FieldValidatorSchema extends FieldValidatorAbstract {
             );
         }
 
-        return true;
+        return $this->has_passed_validation = true;
     }
 }
