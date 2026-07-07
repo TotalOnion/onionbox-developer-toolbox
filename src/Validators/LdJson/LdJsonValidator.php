@@ -2,30 +2,33 @@
 
 namespace OnionWordpressDeveloperToolbox\Validators\LdJson;
 
-use \WP_Http;
 use EasyRdf\Graph;
+use OnionWordpressDeveloperToolbox\Exceptions\FieldValidatorException;
 use OnionWordpressDeveloperToolbox\Exceptions\LdJsonException;
-use OnionWordpressDeveloperToolbox\Exceptions\WpHttpException;
 use OnionWordpressDeveloperToolbox\Services\HttpService;
+use OnionWordpressDeveloperToolbox\Validators\FieldValidators\FieldValidatorFactory;
 
-class LdJsonValidator {
+abstract class LdJsonValidator {
 
+    protected const SCHEMA_NAME = '';
     protected const REQUIRED_FIELDS = [];
 
-    public const FIELD_TYPE_URL     = 'url';
-    public const FIELD_TYPE_ARRAY   = 'array';
-    public const FIELD_TYPE_STRING  = 'string';
-    public const VALID_FIELD_TYPES  = [
-        self::FIELD_TYPE_URL,
-        self::FIELD_TYPE_ARRAY,
-        self::FIELD_TYPE_STRING,
-    ];
+    protected array $required_fields = [];
 
     protected ?HttpService $http_service;
     protected array $flags = [];
 
     public function __construct( protected Graph $graph, protected array $ld_json ) {
         $this->http_service = new HttpService();
+
+        try {
+            foreach ( $this::REQUIRED_FIELDS as $field_key => $field_config ) {
+                $this->required_fields[ $field_key ] = FieldValidatorFactory::instance( $field_key, $field_config );
+            }
+        } catch ( \Exception $e ) {
+            // rethrow a generic exception as an LdJsonException
+            throw new LdJsonException( $e->getMessage() );
+        }
     }
 
     public function set_flags( array $flags ):void {
@@ -33,8 +36,8 @@ class LdJsonValidator {
     }
 
     public function validate():array {
-        if ( $this->flags['vverbose'] ) {
-            var_dump( $this->ld_json );
+        if ( $this->flags['vverbose'] ?? false ) {
+            print_r( $this->ld_json );
         }
 
         $errors = $this->validate_json_ld_node( $this->ld_json );
@@ -49,58 +52,23 @@ class LdJsonValidator {
      * @return array
      */
     private function check_required_fields( $errors = [] ):array {
-        foreach( $this::REQUIRED_FIELDS as $key => $variable_type ) {
-            
+        if (
+            ! array_key_exists( '@type', $this->ld_json )
+            || $this->ld_json['@type'] !== $this::SCHEMA_NAME
+        ) {
+            $errors[] = sprintf( 'Missing schema @type=%s', $this::SCHEMA_NAME );
+        }
+
+        foreach( $this->required_fields as $key => $field_validator ) {
             if ( ! array_key_exists( $key, $this->ld_json ) ) {
                 $errors[] = sprintf( 'Missing required fields "%s"', $key );
                 continue;
             }
 
-            if ( ! in_array( $variable_type, $this::VALID_FIELD_TYPES ) ) {
-                throw new LdJsonException(
-                    sprintf( 'Unknown required field type of %s. Allowed types are %s.', $variable_type, implode(', ', $this::VALID_FIELD_TYPES ) )
-                );
-            }
-
-            switch ( $variable_type ) {
-                case self::FIELD_TYPE_URL:
-                    try {
-                        HttpService::is_target_url_valid( $this->ld_json[ $key ] );
-                    } catch ( WpHttpException $e ) {
-                        $errors[] = sprintf( 'Field %s is expected to be a URL, but is not valid: %s', $key, $e->getMessage() );
-                        continue 2;
-                    }
-
-                    if( $this->flags['follow-links'] ?? false ) {
-                        $response = $this->http_service->get( $this->ld_json[ $key ] );
-                        if ( is_wp_error( $response ) ) {
-                            $errors[] = sprintf( 'Field "%s" caused an error when tested; "%s"', $key, $response->get_error_message() );
-                            continue 2;
-                        }
-
-                        if( $response['response']['code'] !== WP_Http::OK ) {
-                            $errors[] = sprintf(
-                                'Field "%s", "%s" has a non 200 http response code. received %s',
-                                $key,
-                                $this->ld_json[ $key ],
-                                $response['response']['code']
-                            );
-                            continue 2;
-                        }
-                    }
-                    break;
-                
-                case self::FIELD_TYPE_ARRAY:
-                    if ( ! is_array( $this->ld_json[ $key ] ) ) {
-                        $errors[] = sprintf( 'Field %s is expected to be an array, but is %s', $key, gettype( $this->ld_json[ $key ] ) );
-                    }
-                    break;
-                
-                case self::FIELD_TYPE_STRING:
-                    if ( gettype( $this->ld_json[ $key ] ) !== 'string' ) {
-                        $errors[] = sprintf( 'Field %s is expected to be a string, but is %s', $key, gettype( $this->ld_json[ $key ] ) );
-                    }
-
+            try {
+                $field_validator->validate( $this->ld_json[ $key ], $this->flags );
+            } catch ( FieldValidatorException $e ) {
+                $errors[] = $e->getMessage();
             }
         }
 

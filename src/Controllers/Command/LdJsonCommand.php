@@ -184,9 +184,15 @@ class LdJsonCommand extends AbstractCommandController
 
         $total_error_count = 0;
         foreach ( $ld_json_snippets as $ld_json_snippet ) {
-            $validator = $this->ld_json_validator_factory->instance( $ld_json_snippet );
-            $validator->set_flags( $this->flags );
-            $errors = $validator->validate();
+            $errors = [];
+            try {
+                $validator = $this->ld_json_validator_factory->instance( $ld_json_snippet );
+                $validator->set_flags( $this->flags );
+                $errors = $validator->validate();
+            } catch ( LdJsonException $e ) {
+                $errors[] = $e->getMessage();
+            }
+            
             if ( $errors ) {
                 $this->log(
                     $post,

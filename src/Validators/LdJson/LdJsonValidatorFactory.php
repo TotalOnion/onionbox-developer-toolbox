@@ -8,8 +8,18 @@ use OnionWordpressDeveloperToolbox\Exceptions\LdJsonException;
 
 class LdJsonValidatorFactory {
 
-    public const VALIDATOR_TYPE_RECIPE  = 'Recipe';
+    private const BASE_VALIDATOR_CLASSNAME = 'OnionWordpressDeveloperToolbox\Validators\LdJson\LdJson%sValidator';
+
+    public const VALIDATOR_TYPE_BRAND   = 'Brand';
+    public const VALIDATOR_TYPE_OFFER   = 'Offer';
     public const VALIDATOR_TYPE_PRODUCT = 'Product';
+    public const VALIDATOR_TYPE_RECIPE  = 'Recipe';
+    public const AVAILABLE_VALIDATORS = [
+        self::VALIDATOR_TYPE_BRAND,
+        self::VALIDATOR_TYPE_OFFER,
+        self::VALIDATOR_TYPE_PRODUCT,
+        self::VALIDATOR_TYPE_RECIPE,
+    ];
 
     private ?Graph $graph;
 
@@ -27,17 +37,12 @@ class LdJsonValidatorFactory {
             throw new LdJsonException( 'No @type found in the ld+json' );
         }
 
-        switch ( $ld_json['@type'] ) {
-            case self::VALIDATOR_TYPE_RECIPE:
-                return new LdJsonRecipeValidator( $this->graph, $ld_json );
-            
-            case self::VALIDATOR_TYPE_PRODUCT:
-                return new LdJsonProductValidator( $this->graph, $ld_json );
-            
-            default:
-                throw new LdJsonException( sprintf( 'No validator found for @type %s', $ld_json['@type'] ) );
-                //return new LdJsonValidator( $this->graph, $ld_json );
+        if ( ! in_array( $ld_json['@type'], self::AVAILABLE_VALIDATORS ) ) {
+            throw new LdJsonException( sprintf( 'No validator found for @type %s', $ld_json['@type'] ) );
         }
+
+        $classname = sprintf( self::BASE_VALIDATOR_CLASSNAME, $ld_json['@type'] );
+        return new $classname( $this->graph, $ld_json );
     }
 
 }
