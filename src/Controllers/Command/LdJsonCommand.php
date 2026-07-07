@@ -123,6 +123,8 @@ class LdJsonCommand extends AbstractCommandController
      */
     private function test_post( WP_Post $post ) {
         $url = $this->http_service->get_post_permalink( $post );
+        $this->log( $post, self::LOG_AS_INFO, 'Checking '.$url );
+
         $response = $this->http_service->get( $url );
         if ( is_wp_error( $response ) ) {
             throw new WpHttpException(
@@ -138,16 +140,30 @@ class LdJsonCommand extends AbstractCommandController
 
         // Extract all matches
         preg_match_all( '/type="application\/ld\+json"[ ]*>([^<]+)/', $response['body'], $matches );
-        
         if ( ! $matches ) {
             $this->log( $post, self::LOG_AS_WARNING, 'No ld+json detected' );
             return;
         }
 
+        // remove any empty snippets
+        $snippets = [];
+        foreach ( $matches[1] as $snippet ) {
+            $snippet = str_replace( 'null', '', $snippet );
+            if ( $snippet ) {
+                $snippets[] = $snippet;
+            }
+        }
+
+        if ( ! $snippets ) {
+            $this->log( $post, self::LOG_AS_WARNING, 'No *valid* ld+json detected' );
+            return;
+        }
+
         // Convert snippets to arrays
         $ld_json_snippets = [];
-        $this->log( $post, self::LOG_AS_INFO, sprintf( 'Found %d snippets', count( $matches[1] ) ) );
-        foreach ( $matches[1] as $snippet ) {
+        $this->log( $post, self::LOG_AS_INFO, sprintf( 'Found %d snippets', count( $snippets ) ) );
+
+        foreach ( $snippets as $snippet ) {
             try {
                 $ld_json = $this->ld_json_string_to_array( $snippet );
                 // Merge any snippets with identical @id values
@@ -164,7 +180,7 @@ class LdJsonCommand extends AbstractCommandController
             }
         }
 
-        if ( count( $matches[1] ) !== count( $ld_json_snippets ) ) {
+        if ( count( $snippets ) !== count( $ld_json_snippets ) ) {
             $this->log( $post, self::LOG_AS_INFO, sprintf( 'Used @id to merge down to %d', count( $ld_json_snippets ) ) );
         }
 
@@ -219,7 +235,7 @@ class LdJsonCommand extends AbstractCommandController
             );
         }
 
-        return $this->remove_empty_array_values_recursively( $ld_json );
+        return $ld_json ? $this->remove_empty_array_values_recursively( $ld_json ) : [];
     }
 
     private function remove_empty_array_values_recursively( array $array ): array {
