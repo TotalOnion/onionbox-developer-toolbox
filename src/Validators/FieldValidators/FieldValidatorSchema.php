@@ -26,6 +26,7 @@ class FieldValidatorSchema extends FieldValidatorAbstract {
                 sprintf(
                     'Sub-field %s is expected to be an @%s, but has errors: "%s"',
                     $this->key,
+                    $value['@type'] ?? 'unknown',
                     implode( ', ', $errors )
                 )
             );

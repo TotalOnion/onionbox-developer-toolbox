@@ -4,7 +4,7 @@ namespace OnionWordpressDeveloperToolbox\Validators\FieldValidators;
 
 use OnionWordpressDeveloperToolbox\Exceptions\FieldValidatorException;
 
-class FieldValidatorStringInt extends FieldValidatorAbstract {
+class FieldValidatorStringFloat extends FieldValidatorAbstract {
 
     public function validate( mixed $value, array $flags = [] ):bool {
         if ( gettype( $value ) !== 'string' && gettype( $value ) !== 'double' ) {

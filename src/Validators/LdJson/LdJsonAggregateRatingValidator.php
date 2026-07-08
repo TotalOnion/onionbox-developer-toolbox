@@ -7,8 +7,8 @@ use OnionWordpressDeveloperToolbox\Validators\FieldValidators\FieldValidatorFact
 class LdJsonAggregateRatingValidator extends LdJsonValidator {
     protected const SCHEMA_NAME = 'AggregateRating';
     protected const REQUIRED_FIELDS = [
-        'ratingValue' => [ 'field_type' => FieldValidatorFactory::FIELD_TYPE_STRINGFLOAT ],
-        'ratingCount' => [ 'field_type' => FieldValidatorFactory::FIELD_TYPE_STRINGINT ],
-        'bestRating'  => [ 'field_type' => FieldValidatorFactory::FIELD_TYPE_STRINGINT ],
+        'ratingValue' => [ 'field_type' => FieldValidatorFactory::FIELD_TYPE_STRING_FLOAT ],
+        'ratingCount' => [ 'field_type' => FieldValidatorFactory::FIELD_TYPE_STRING_INT ],
+        'bestRating'  => [ 'field_type' => FieldValidatorFactory::FIELD_TYPE_STRING_INT ],
     ];
 }
