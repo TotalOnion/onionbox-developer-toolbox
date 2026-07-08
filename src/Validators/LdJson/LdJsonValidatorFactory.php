@@ -11,15 +11,17 @@ class LdJsonValidatorFactory {
     private const BASE_VALIDATOR_CLASSNAME = 'OnionWordpressDeveloperToolbox\Validators\LdJson\LdJson%sValidator';
     public const SET_AS_SUB_SCHEMA = true;
 
-    public const VALIDATOR_TYPE_BRAND   = 'Brand';
-    public const VALIDATOR_TYPE_OFFER   = 'Offer';
-    public const VALIDATOR_TYPE_PRODUCT = 'Product';
-    public const VALIDATOR_TYPE_RECIPE  = 'Recipe';
-    public const AVAILABLE_VALIDATORS = [
+    public const VALIDATOR_TYPE_BRAND    = 'Brand';
+    public const VALIDATOR_TYPE_OFFER    = 'Offer';
+    public const VALIDATOR_TYPE_PRODUCT  = 'Product';
+    public const VALIDATOR_TYPE_RECIPE   = 'Recipe';
+    public const VALIDATOR_TYPE_WEB_PAGE = 'WebPage';
+    public const AVAILABLE_VALIDATORS    = [
         self::VALIDATOR_TYPE_BRAND,
         self::VALIDATOR_TYPE_OFFER,
         self::VALIDATOR_TYPE_PRODUCT,
         self::VALIDATOR_TYPE_RECIPE,
+        self::VALIDATOR_TYPE_WEB_PAGE,
     ];
 
     private ?Graph $graph;

@@ -166,6 +166,7 @@ class LdJsonCommand extends AbstractCommandController
         foreach ( $snippets as $snippet ) {
             try {
                 $ld_json = $this->ld_json_string_to_array( $snippet );
+                $ld_json['@id'] = array_key_exists( '@id', $ld_json ) ? $ld_json['@id'] : 'fake-id-' . bin2hex( random_bytes(8) );
                 // Merge any snippets with identical @id values
                 if ( $ld_json_snippets[ $ld_json['@id'] ] ?? false ) {
                     $ld_json_snippets[ $ld_json['@id'] ] = array_replace_recursive(
