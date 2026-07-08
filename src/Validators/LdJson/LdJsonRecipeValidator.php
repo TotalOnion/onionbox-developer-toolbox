@@ -15,4 +15,7 @@ class LdJsonRecipeValidator extends LdJsonValidator {
         'recipeInstructions' => [ 'field_type' => FieldValidatorFactory::FIELD_TYPE_ARRAY ],
         'recipeYield'        => [ 'field_type' => FieldValidatorFactory::FIELD_TYPE_STRING_INT ],
     ];
+    protected const OPTIONAL_FIELDS = [
+        'aggregateRating' => [ 'field_type' => FieldValidatorFactory::FIELD_TYPE_SCHEMA, 'schema' => 'AggregateRating' ],
+    ];
 }
