@@ -89,9 +89,9 @@ class LdJsonCommand extends AbstractCommandController
                 $targets = $this->database_service->get_posts_by_ids( explode( ',',$this->flags['target-ids'] ) );
             }
         } catch ( WpDatabaseException $e ) {
-            WP_CLI::error( 'Failed to load targets. Error %s', $e->getMessage() );
+            WP_CLI::error( sprintf( 'Failed to load targets. Error %s', $e->getMessage() ) );
         } catch ( \Exception $e ) {
-            WP_CLI::error( 'Uncaught fatal exception. Error %s', $e->getMessage() );
+            WP_CLI::error( sprintf( 'Uncaught fatal exception. Error %s', $e->getMessage() ) );
         }
 
         if ( ! $targets ) {
