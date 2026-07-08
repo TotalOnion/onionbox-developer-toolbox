@@ -24,7 +24,7 @@ class LdJsonProductValidator extends LdJsonValidator {
         if ( ! $this->is_sub_schema ) {
             if (
                 ! $this->optional_fields['offers']->is_valid()
-                && ! $this->optional_fields['offers']->is_valid()
+                && ! $this->optional_fields['aggregateRating']->is_valid()
             ) {
                 $errors[] = 'Product Schemas that are not the child of a parent Schema like WebPage should include either a valid "offers" or "aggregateRating" (or both)';
             }
