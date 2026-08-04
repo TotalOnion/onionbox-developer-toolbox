@@ -18,15 +18,26 @@ class LdJsonCommand extends AbstractCommandController
 {
     const COMMAND_NAME = 'ldjson';
 
-    private const LOG_AS_GOOD    = 'good';
-    private const LOG_AS_WARNING = 'warning';
-    private const LOG_AS_BAD     = 'bad';
-    private const LOG_AS_INFO    = 'info';
+    private const LOG_AS_GOOD     = 'good';
+    private const LOG_AS_WARNING  = 'warning';
+    private const LOG_AS_BAD      = 'bad';
+    private const LOG_AS_INFO     = 'info';
+    private const FORMAT_JSON     = 'json';
+    private const FORMAT_STDOUT   = 'stdout';
+    private const ALLOWED_FORMATS = [
+        self::FORMAT_JSON,
+        self::FORMAT_STDOUT,
+    ];
 
     private ?DatabaseService $database_service;
     private ?HttpService $http_service;
     private ?LdJsonValidatorFactory $ld_json_validator_factory;
     private array $flags = [];
+    private array $stats = [
+        'good' => [],
+        'warning' => [],
+        'bad' => [],
+    ];
 
     /**
      * @inheritDoc
@@ -53,6 +64,9 @@ class LdJsonCommand extends AbstractCommandController
      * [--follow-links]
      * : Follow things like image links to see if they are resolving correctly
      * 
+     * [--format=<stdout|json>]
+     * : Whether the output should be to console or as a json file. Json format is always verbose. vverbose is ignored in Json format.
+     * 
      * [--verbose]
      * : Show passes as well as failures, and extra info in general.
      * 
@@ -68,6 +82,7 @@ class LdJsonCommand extends AbstractCommandController
                 'target-path'       => null,
                 'target-ids'        => null,
                 'follow-links'      => false,
+                'format'            => 'stdout',
                 'verbose'           => false,
                 'vverbose'          => false,
             )
@@ -113,6 +128,11 @@ class LdJsonCommand extends AbstractCommandController
                 );
             }
         }
+
+        WP_CLI::log( sprintf( 'Tested:  %d', count( $targets ) ) );
+        WP_CLI::log( sprintf( 'Good:    %d', count( $this->stats['good'] ) ) );
+        WP_CLI::log( sprintf( 'Warning: %d', count( $this->stats['warning'] ) ) );
+        WP_CLI::log( sprintf( 'Bad:     %d', count( $this->stats['bad'] ) ) );
     }
 
     /**
@@ -265,46 +285,28 @@ class LdJsonCommand extends AbstractCommandController
     {
         switch ( $log_as ) {
             case self::LOG_AS_INFO:
+                $message = sprintf( '%d: Info: %s', $post->ID, $reason );
                 if ( $this->flags['verbose'] ) {
-                    WP_CLI::log(
-                        sprintf(
-                            '%d: Info: %s',
-                            $post->ID,
-                            $reason
-                        )
-                    );
+                    WP_CLI::log( $message );
                 }
                 break;
 
             case self::LOG_AS_GOOD:
+                $message = sprintf( '%d: passed.', $post->ID );
                 if ( $this->flags['verbose'] ) {
-                    WP_CLI::log(
-                        sprintf(
-                            '%d: passed.',
-                            $post->ID
-                        )
-                    );
+                    WP_CLI::log( $message );
                 }
                 break;
 
             case self::LOG_AS_WARNING:
-                WP_CLI::warning( sprintf(
-                    '%d: warning: %s',
-                    $post->ID,
-                    $reason
-                ) );
+                $message = sprintf( '%d: warning: %s', $post->ID, $reason );
+                WP_CLI::warning( $message );
                 break;
 
             case self::LOG_AS_BAD:
             default:
-                WP_CLI::error(
-                    sprintf(
-                        '%d: has errors: %s',
-                        $post->ID,
-                        $reason
-                    ),
-                    false
-                );
+                $message = sprintf( '%d: has errors: %s', $post->ID, $reason );
+                WP_CLI::error( $message, false );
                 break;
         }
 
@@ -312,6 +314,17 @@ class LdJsonCommand extends AbstractCommandController
             foreach( $error_array as $error ) {
                 WP_CLI::log( "\t" . $error );
             }
+        }
+
+        $this->add_to_stats( $post, $log_as, $message );
+    }
+
+    private function add_to_stats( WP_Post $post, string $log_as, string $message ):void
+    {
+        if ( $this->stats[ $log_as ][ $post->ID ] ?? false ) {
+            $this->stats[ $log_as ][ $post->ID ][] = $message;
+        } else {
+            $this->stats[ $log_as ][ $post->ID ] = [ $message ];
         }
     }
 }
