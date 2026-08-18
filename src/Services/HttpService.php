@@ -27,7 +27,7 @@ class HttpService {
     }
 
     public function get_post_permalink( WP_Post $post ):string {
-        $permalink = get_post_permalink( $post );
+        $permalink = $this->get_language_aware_permalink( $post );
         if ( 
             ($_ENV['LANDO_APP_NAME'] ?? false)
             && ($_ENV['LANDO_DOMAIN'] ?? false)
@@ -35,6 +35,34 @@ class HttpService {
             $permalink = preg_replace( '/https:\/\/([^\/]+)/', $this->get_base_url(), $permalink );
         }
         
+        return $permalink;
+    }
+
+    /**
+     * Resolve a permalink in the post's own WPML language.
+     *
+     * get_permalink() uses the current request language, so translated posts
+     * otherwise resolve to the default-language URL and scrape the wrong page.
+     */
+    private function get_language_aware_permalink( WP_Post $post ): string {
+        $language = apply_filters(
+            'wpml_element_language_code',
+            null,
+            array(
+                'element_id'   => $post->ID,
+                'element_type' => 'post_' . $post->post_type,
+            )
+        );
+
+        if ( ! $language ) {
+            return get_permalink( $post );
+        }
+
+        $original_language = apply_filters( 'wpml_current_language', null );
+        do_action( 'wpml_switch_language', $language );
+        $permalink = get_permalink( $post );
+        do_action( 'wpml_switch_language', $original_language );
+
         return $permalink;
     }
 
