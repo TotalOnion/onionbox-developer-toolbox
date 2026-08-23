@@ -20,7 +20,8 @@
   "require": {
     "php": ">=8.0",
     "ml/json-ld": "^1.2",
-    "easyrdf/easyrdf": "^1.1"
+    "easyrdf/easyrdf": "^1.1",
+    "laravie/parser": "^3.0"
   },
   "extra": {
     "installer-name": "onionbox-developer-toolbox"

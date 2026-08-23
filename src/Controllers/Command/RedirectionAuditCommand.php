@@ -40,7 +40,6 @@ class RedirectionAuditCommand extends AbstractCommandController
         'is_bad' => [],
         'has_warnings' => [],
     ];
-    private array $flags;
 
     /**
      * @inheritDoc

@@ -22,17 +22,11 @@ class LdJsonCommand extends AbstractCommandController
     private const LOG_AS_WARNING  = 'warning';
     private const LOG_AS_BAD      = 'bad';
     private const LOG_AS_INFO     = 'info';
-    private const FORMAT_JSON     = 'json';
-    private const FORMAT_STDOUT   = 'stdout';
-    private const ALLOWED_FORMATS = [
-        self::FORMAT_JSON,
-        self::FORMAT_STDOUT,
-    ];
+    
 
     private ?DatabaseService $database_service;
     private ?HttpService $http_service;
     private ?LdJsonValidatorFactory $ld_json_validator_factory;
-    private array $flags = [];
     private array $stats = [
         'good' => [],
         'warning' => [],
