@@ -7,6 +7,9 @@ use OnionWordpressDeveloperToolbox\Exceptions\WpDatabaseException;
 
 class DatabaseService {
 
+    const EXCLUDE_HIDDEN_MARKETS = true;
+    const INCLUDE_HIDDEN_MARKETS = false;
+
     /**
      * url -> WP_Post fetcher
      * 
@@ -35,23 +38,63 @@ class DatabaseService {
     /**
      * Takes an array of post type names, and returns all matching WP_Posts
      * 
-     * @param array $post_types
-     * @return array
+     * @param array $post_types An array of post types to fetch
+     * @param bool $exclude_hidden_markets If true will remove any posts on hidden or suppressed languages/markets
+     * @return array An array of WP_Post objects
      */
-    public function get_posts_by_types( array $post_types ):array {
-        $posts = [];
-        foreach( $post_types as $post_type ) {
-            $posts = array_merge(
-                $posts,
-                get_posts([
-                    'post_type' => trim( $post_type ),
-                    'post_status' => 'publish',
-                    'numberposts' => -1
-                ])
-            );
+    public function get_posts_by_types(
+        array $post_types,
+        bool $exclude_hidden_markets = self::INCLUDE_HIDDEN_MARKETS
+    ):array {
+        $post_types = array_map( fn( $post_type ) => trim( $post_type ), $post_types );
+
+        $wp_query_args = [
+            'post_type' => $post_types,
+            'post_status' => 'publish',
+            'numberposts' => -1
+        ];
+
+        if ( $exclude_hidden_markets ) {
+            $ids_to_ignore = $this->get_post_ids_of_all_suppressed_languages( $post_types );
+            if ( $ids_to_ignore ) {
+                $wp_query_args['post__not_in'] = array_map( 'intval' , $ids_to_ignore );
+            }
+            
         }
 
-        return $posts;
+        return get_posts( $wp_query_args );
+    }
+
+    /**
+     * Gets an array of post IDs for any post type in $post_types that is in a language that is suppressed
+     * 
+     * @param array $post_types
+     * @return array An array of wp_post.ID values for posts/pages to be excluded
+     */
+    private function get_post_ids_of_all_suppressed_languages( array $post_types ):array {
+        global $wpdb;
+
+        $suppressed_languages = get_option('onion_seopress_helper_suppressed_markets');
+        if ( ! $suppressed_languages ) {
+            return [];
+        }
+        $suppressed_languages = array_keys( $suppressed_languages );
+
+        $element_placeholders = implode(', ', array_fill(0, count($post_types), '%s') );
+        $language_code_placeholders = implode(', ', array_fill(0, count($suppressed_languages), '%s') );
+
+        return $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT element_id
+                FROM {$wpdb->prefix}icl_translations
+                WHERE element_type = IN ($element_placeholders)
+                AND language_code IN ($language_code_placeholders);",
+                array_merge(
+                    array_map( fn($post_type) => 'post_' . trim( $post_type ), $post_types ),
+                    $suppressed_languages
+                )
+            )
+        );
     }
 
     /**

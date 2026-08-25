@@ -53,8 +53,6 @@ abstract class AbstractCommandController extends AbstractController
             'version' => $version,
             'run_at' => time(),
         ];
-
-        $this->load_local_config();
     }
 
     public function __destruct() {

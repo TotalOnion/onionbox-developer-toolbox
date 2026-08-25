@@ -7,9 +7,10 @@ use Laravie\Parser\Xml\Reader;
 use OnionWordpressDeveloperToolbox\Exceptions\SitemapException;
 use OnionWordpressDeveloperToolbox\Exceptions\WpHttpException;
 use OnionWordpressDeveloperToolbox\Models\SitemapEntryModel;
+use OnionWordpressDeveloperToolbox\Services\DatabaseService;
 use OnionWordpressDeveloperToolbox\Services\HttpService;
-use WP_CLI;
 use WP_Http;
+use WPML\ICLToATEMigration\Data;
 
 class SitemapCommand extends AbstractCommandController
 {
@@ -21,18 +22,22 @@ class SitemapCommand extends AbstractCommandController
     private const LOG_AS_INFO     = 'info';
 
     protected array $flags = [
-        'format'   => AbstractCommandController::OUTPUT_FORMAT_DEFAULT,
-        'sitemap'  => 'sitemaps.xml',
-        'verbose'  => false,
-        'vverbose' => false,
+        'format'              => AbstractCommandController::OUTPUT_FORMAT_DEFAULT,
+        'sitemap'             => 'sitemaps.xml',
+        'expected-post-types' => [],
+        'verbose'             => false,
+        'vverbose'            => false,
     ];
 
+    private array $urls_to_check_against = [];
+    private ?DatabaseService $database_service;
     private ?HttpService $http_service;
 
     /**
      * @inheritDoc
      */
     public function __construct( $pluginName, $version ) {
+        $this->database_service = new DatabaseService;
         $this->http_service = new HttpService;
         parent::__construct( $pluginName, $version );
     }
@@ -46,6 +51,9 @@ class SitemapCommand extends AbstractCommandController
      * [--sitemap=<root_sitemap_filename>]
      * : Which sitemap file to start at. Defaults to sitemaps.xml
      * 
+     * [--expected-post-types=<post-type>...]
+     * : Ensure that all posts of <post-type> are in the sitemaps. Pass in a csv for multiple.
+     * 
      * [--verbose]
      * : Show passes as well as failures, and extra info in general.
      * 
@@ -54,6 +62,7 @@ class SitemapCommand extends AbstractCommandController
      */
     public function __invoke( array $args, array $flags )
     {
+        $this->load_local_config();
         $this->flags = wp_parse_args( $flags, $this->flags );
 
         // If you want very verbose, you gotta have verbose too.
@@ -63,6 +72,14 @@ class SitemapCommand extends AbstractCommandController
 
         if ( ! $this->validate_flags() ) {
             $this->output( self::OUTPUT_AS_ERROR, 'Invalid flag settings', self::IS_FATAL );
+        }
+
+        // are we checking the sitemap against post types?
+        if ( $this->flags['expected-post-types'] ) {
+            $this->urls_to_check_against = $this->database_service->get_posts_by_types(
+                explode( ',',$this->flags['expected-post-types'] ),
+                DatabaseService::EXCLUDE_HIDDEN_MARKETS
+            );
         }
 
         try {

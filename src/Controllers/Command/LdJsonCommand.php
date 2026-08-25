@@ -22,16 +22,20 @@ class LdJsonCommand extends AbstractCommandController
     private const LOG_AS_WARNING  = 'warning';
     private const LOG_AS_BAD      = 'bad';
     private const LOG_AS_INFO     = 'info';
-    
+
+    protected array $flags = [
+        'target-post-types' => null,
+        'target-path'       => null,
+        'target-ids'        => null,
+        'follow-links'      => false,
+        'format'            => 'stdout',
+        'verbose'           => false,
+        'vverbose'          => false,
+    ];
 
     private ?DatabaseService $database_service;
     private ?HttpService $http_service;
     private ?LdJsonValidatorFactory $ld_json_validator_factory;
-    private array $stats = [
-        'good' => [],
-        'warning' => [],
-        'bad' => [],
-    ];
 
     /**
      * @inheritDoc
@@ -69,18 +73,8 @@ class LdJsonCommand extends AbstractCommandController
      */
     public function __invoke( array $args, array $flags )
     {
-        $this->flags = wp_parse_args(
-            $flags,
-            array(
-                'target-post-types' => null,
-                'target-path'       => null,
-                'target-ids'        => null,
-                'follow-links'      => false,
-                'format'            => 'stdout',
-                'verbose'           => false,
-                'vverbose'          => false,
-            )
-        );
+        $this->load_local_config();
+        $this->flags = wp_parse_args( $flags, $this->flags );
 
         // If you want very verbose, you gotta have verbose too.
         if ( $this->flags['vverbose'] ) {
@@ -98,17 +92,17 @@ class LdJsonCommand extends AbstractCommandController
                 $targets = $this->database_service->get_posts_by_ids( explode( ',',$this->flags['target-ids'] ) );
             }
         } catch ( WpDatabaseException $e ) {
-            WP_CLI::error( sprintf( 'Failed to load targets. Error %s', $e->getMessage() ) );
+            $this->output( self::OUTPUT_AS_ERROR, sprintf( 'Failed to load targets. Error %s', $e->getMessage() ) );
         } catch ( \Exception $e ) {
-            WP_CLI::error( sprintf( 'Uncaught fatal exception. Error %s', $e->getMessage() ) );
+            $this->output( self::OUTPUT_AS_ERROR, sprintf( 'Uncaught fatal exception. Error %s', $e->getMessage() ) );
         }
 
         if ( ! $targets ) {
-            WP_CLI::warning( 'No matching targets found' );
+            $this->output( self::OUTPUT_AS_WARNING, 'No matching targets found' );
             return;
         }
 
-        WP_CLI::log( sprintf( 'Checking %d targets', count( $targets ) ) );
+        $this->output( self::OUTPUT_AS_LOG, sprintf( 'Checking %d targets', count( $targets ) ) );
 
         // Lets do some testing
         foreach( $targets as $post ) {
@@ -122,11 +116,6 @@ class LdJsonCommand extends AbstractCommandController
                 );
             }
         }
-
-        WP_CLI::log( sprintf( 'Tested:  %d', count( $targets ) ) );
-        WP_CLI::log( sprintf( 'Good:    %d', count( $this->stats['good'] ) ) );
-        WP_CLI::log( sprintf( 'Warning: %d', count( $this->stats['warning'] ) ) );
-        WP_CLI::log( sprintf( 'Bad:     %d', count( $this->stats['bad'] ) ) );
     }
 
     /**
@@ -279,46 +268,34 @@ class LdJsonCommand extends AbstractCommandController
     {
         switch ( $log_as ) {
             case self::LOG_AS_INFO:
-                $message = sprintf( '%d: Info: %s', $post->ID, $reason );
                 if ( $this->flags['verbose'] ) {
-                    WP_CLI::log( $message );
+                    $this->output( $this::OUTPUT_AS_LOG, sprintf( '%d: Info: %s', $post->ID, $reason ) );
                 }
                 break;
 
             case self::LOG_AS_GOOD:
-                $message = sprintf( '%d: passed.', $post->ID );
+                $this->json_output['stats']['good']++;
                 if ( $this->flags['verbose'] ) {
-                    WP_CLI::log( $message );
+                    $this->output( $this::OUTPUT_AS_LOG, sprintf( '%d: passed.', $post->ID ) );
                 }
                 break;
 
             case self::LOG_AS_WARNING:
-                $message = sprintf( '%d: warning: %s', $post->ID, $reason );
-                WP_CLI::warning( $message );
+                $this->json_output['stats']['warning']++;
+                $this->output( $this::OUTPUT_AS_WARNING, sprintf( '%d: warning: %s', $post->ID, $reason ) );
                 break;
 
             case self::LOG_AS_BAD:
             default:
-                $message = sprintf( '%d: has errors: %s', $post->ID, $reason );
-                WP_CLI::error( $message, false );
+                $this->json_output['stats']['bad']++;
+                $this->output( $this::OUTPUT_AS_ERROR, sprintf( '%d: has errors: %s', $post->ID, $reason ) );
                 break;
         }
 
         if ( $this->flags['verbose'] && $error_array ) {
             foreach( $error_array as $error ) {
-                WP_CLI::log( "\t" . $error );
+                $this->output( $this::OUTPUT_AS_LOG, "\t" . $error );
             }
-        }
-
-        $this->add_to_stats( $post, $log_as, $message );
-    }
-
-    private function add_to_stats( WP_Post $post, string $log_as, string $message ):void
-    {
-        if ( $this->stats[ $log_as ][ $post->ID ] ?? false ) {
-            $this->stats[ $log_as ][ $post->ID ][] = $message;
-        } else {
-            $this->stats[ $log_as ][ $post->ID ] = [ $message ];
         }
     }
 }
