@@ -55,11 +55,10 @@ class DatabaseService {
         ];
 
         if ( $exclude_hidden_markets ) {
-            $ids_to_ignore = $this->get_post_ids_of_all_suppressed_languages( $post_types );
+            $ids_to_ignore = $this->get_post_ids_of_all_suppressed_language_pages( $post_types );
             if ( $ids_to_ignore ) {
                 $wp_query_args['post__not_in'] = array_map( 'intval' , $ids_to_ignore );
             }
-            
         }
 
         return get_posts( $wp_query_args );
@@ -71,10 +70,10 @@ class DatabaseService {
      * @param array $post_types
      * @return array An array of wp_post.ID values for posts/pages to be excluded
      */
-    private function get_post_ids_of_all_suppressed_languages( array $post_types ):array {
+    private function get_post_ids_of_all_suppressed_language_pages( array $post_types ):array {
         global $wpdb;
 
-        $suppressed_languages = get_option('onion_seopress_helper_suppressed_markets');
+        $suppressed_languages = get_option('onion_seopress_helper_suppressed_markets') ?: get_option('pr_seopress_helper_suppressed_markets');
         if ( ! $suppressed_languages ) {
             return [];
         }
@@ -87,8 +86,9 @@ class DatabaseService {
             $wpdb->prepare(
                 "SELECT element_id
                 FROM {$wpdb->prefix}icl_translations
-                WHERE element_type = IN ($element_placeholders)
-                AND language_code IN ($language_code_placeholders);",
+                WHERE element_type IN ($element_placeholders)
+                AND language_code IN ($language_code_placeholders)
+                AND element_id != 0;",
                 array_merge(
                     array_map( fn($post_type) => 'post_' . trim( $post_type ), $post_types ),
                     $suppressed_languages

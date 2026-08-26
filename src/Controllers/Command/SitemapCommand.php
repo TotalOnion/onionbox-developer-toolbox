@@ -76,11 +76,14 @@ class SitemapCommand extends AbstractCommandController
 
         // are we checking the sitemap against post types?
         if ( $this->flags['expected-post-types'] ) {
-            $this->urls_to_check_against = $this->database_service->get_posts_by_types(
+            $pages_to_check_against = $this->database_service->get_posts_by_types(
                 explode( ',',$this->flags['expected-post-types'] ),
                 DatabaseService::EXCLUDE_HIDDEN_MARKETS
             );
+            $this->urls_to_check_against = array_map( fn($post) => get_permalink($post), $pages_to_check_against );
         }
+        print_r($this->urls_to_check_against);
+        die;
 
         try {
             $urls = $this->fetch_sitemap( $this->http_service->get_base_url() . '/' . $this->flags['sitemap'] );
