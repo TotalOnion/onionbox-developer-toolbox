@@ -49,14 +49,15 @@ abstract class AbstractCommandController extends AbstractController
         parent::__construct( $pluginName, $version );
 
         $this->json_output['command'] = [
-            'name' => $this::COMMAND_NAME,
+            'name'    => $this::COMMAND_NAME,
             'version' => $version,
-            'run_at' => time(),
+            'run_at'  => time(),
         ];
     }
 
     public function __destruct() {
         $this->json_output['command']['finished_at'] = time();
+        $this->json_output['command']['flags'] = $this->flags;
 
         if ( $this->flags['format'] === self::OUTPUT_FORMAT_JSON ) {
             echo json_encode( $this->json_output );
