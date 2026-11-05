@@ -24,13 +24,15 @@ class LdJsonCommand extends AbstractCommandController
     private const LOG_AS_INFO     = 'info';
 
     protected array $flags = [
-        'target-post-types' => null,
-        'target-path'       => null,
-        'target-ids'        => null,
-        'follow-links'      => false,
-        'format'            => 'stdout',
-        'verbose'           => false,
-        'vverbose'          => false,
+        'ignore-local-config'        => false,
+        'target-post-types'          => null,
+        'target-path'                => null,
+        'target-ids'                 => null,
+        'follow-links'               => false,
+        'format'                     => 'stdout',
+        'exclude-suppressed-markets' => false,
+        'verbose'                    => false,
+        'vverbose'                   => false,
     ];
 
     private ?DatabaseService $database_service;
@@ -50,6 +52,9 @@ class LdJsonCommand extends AbstractCommandController
     /**
      * Checks URLs for valid ld+json Structured data
      * 
+     * [--ignore-local-config]
+     * : Don't parse the .onionbox-config.json
+     * 
      * [--target-post-types=<post-type>...]
      * : Test all of a post type. Pass in a csv to do multiple
      * 
@@ -65,6 +70,9 @@ class LdJsonCommand extends AbstractCommandController
      * [--format=<stdout|json>]
      * : Whether the output should be to console or as a json file. Json format is always verbose. vverbose is ignored in Json format.
      * 
+     * [--exclude-suppressed-markets]
+     * : By default markets hidden with SEOPress Helper are scanned. Excluding them will skip them in the audit. It is recommended to exclude markets on v1 sites, but check them on v2 sites.
+     * 
      * [--verbose]
      * : Show passes as well as failures, and extra info in general.
      * 
@@ -73,7 +81,9 @@ class LdJsonCommand extends AbstractCommandController
      */
     public function __invoke( array $args, array $flags )
     {
-        $this->load_local_config();
+        if ( ! $flags['ignore-local-config'] ?? false ) {
+            $this->load_local_config();
+        }
         $this->flags = wp_parse_args( $flags, $this->flags );
 
         // If you want very verbose, you gotta have verbose too.
@@ -87,7 +97,10 @@ class LdJsonCommand extends AbstractCommandController
             if ( $this->flags['target-path'] ) {
                 $targets[] = $this->database_service->get_post_by_url( $this->flags['target-path'] );
             } elseif( $this->flags['target-post-types'] ) {
-                $targets = $this->database_service->get_posts_by_types( explode( ',',$this->flags['target-post-types'] ) );
+                $targets = $this->database_service->get_posts_by_types(
+                    explode( ',', $this->flags['target-post-types'] ),
+                    $this->flags['exclude-suppressed-markets']
+                );
             } elseif( $this->flags['target-ids'] ) {
                 $targets = $this->database_service->get_posts_by_ids( explode( ',',$this->flags['target-ids'] ) );
             }
@@ -127,6 +140,12 @@ class LdJsonCommand extends AbstractCommandController
     private function test_post( WP_Post $post ) {
         $url = $this->http_service->get_post_permalink( $post );
         $this->log( $post, self::LOG_AS_INFO, 'Checking '.$url );
+
+        if ( $this->flags['exclude-suppressed-markets'] && $this->http_service->url_is_suppressed( $url ) ) {
+            $this->log( $post, self::LOG_AS_INFO, 'URL is on a suppressed market. Skipping.' );
+            $this->log( $post, self::LOG_AS_GOOD );
+            return;
+        }
 
         $response = $this->http_service->get( $url );
         if ( is_wp_error( $response ) ) {

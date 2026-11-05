@@ -10,6 +10,8 @@ use WP_Post;
 class HttpService {
     private ?WP_Http $request;
     private string $base_url = '';
+    private bool $has_scanned_for_suppressed_markets = false;
+    private array $suppressed_markets = [];
 
     public function __construct() {
 
@@ -68,6 +70,35 @@ class HttpService {
 
     public function get_base_url(): string {
         return $this->base_url;
+    }
+
+    public function url_is_suppressed( string $url ):bool {
+        if ( $this->has_scanned_for_suppressed_markets && empty( $this->suppressed_markets ) ) {
+            return false;
+        }
+
+        if ( ! is_plugin_active( 'onion-seopress-helper/onion-seopress-helper.php' ) ) {
+            $this->has_scanned_for_suppressed_markets = true;
+            return false;
+        }
+
+        if ( ! $this->has_scanned_for_suppressed_markets ) {
+            $suppressed_markets = get_option( ONION_SEOPRESS_HELPER_NAME . '_suppressed_markets' );
+            $this->has_scanned_for_suppressed_markets = true;
+            if ( !is_array( $suppressed_markets ) || empty( $suppressed_markets ) ) {
+                return false;
+            }
+
+            $this->suppressed_markets = array_keys( $suppressed_markets );
+        }
+
+        foreach ( $this->suppressed_markets as $suppressed_market ) {
+            if ( preg_match( '/\/'. $suppressed_market . '\//', $url ) ) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

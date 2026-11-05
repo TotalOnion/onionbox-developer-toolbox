@@ -24,6 +24,21 @@ class DatabaseService {
                 sprintf( 'Could not determine wp_posts.ID of "%s"', $url )
             );
         }
+        
+        if ( preg_match( '/^\/([a-z]{2}-?[a-z]{0,2})\//', $url, $matches ) ) {
+            $market_code = $matches[1];
+            $localised_id = (int) apply_filters(
+                'wpml_object_id',
+                $id,
+                get_post_type( $id ),
+                false,                  // Do not fall back to the original language.
+                $market_code
+            );
+
+            if ( $localised_id ) {
+                $id = $localised_id;
+            }
+        }
 
         $post = get_post( $id );
         if ( ! $post ) {
