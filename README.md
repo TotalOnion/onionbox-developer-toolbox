@@ -2,9 +2,74 @@
 
 CLI toolbox for WP devs
 
+## Releasing new versions
+
+1. Update the composer.json file with the new version number
+2. Update `Version` comment in the `wordpress-developer-toolbox.php` file
+3. Update the `ONION_WORDPRESS_DEVELOPER_TOOLBOX_VERSION` constant in the `wordpress-developer-toolbox.php` file
+4. Update this `README.md` file as appropriate
+5. Push those changes to the repo
+6. Publish a tagged release that matches the new version number
+
 ## Help
 
 `wp help onionbox`
+
+### Local config file format
+
+The tool will, by default, look for a `.onionbox-config.json` file by traversing up the directory tree. Typically this should be stored in the project root folder.
+
+This file contains project specific configuration for each command so that it can be run with just `wp onionbox [subcommand]`. This is the file that is used for configuration during pipeline runs.
+
+This configuration can be ignored using the `--ignore-local-config` flag.
+
+Example format:
+```
+{
+    "local_config_version": 1,
+    "project": {
+        "name": "theglenlivet-v2",
+        "id": "7af423af-bdd0-436c-8ef2-6377ebd66d4d"
+    },
+    "tools": {
+        "sitemap": {
+            "flags": {
+                "verbose": true,
+                "quiet": true,
+                "format": "json",
+                "expected-post-types": "product,page,cocktail,article"
+            }
+        },
+        "ldjson": {
+            "flags": {
+                "verbose": true,
+                "quiet": true,
+                "format": "json",
+                "target-post-types": "product,cocktail",
+                "follow-links": true
+            }
+        }
+    }
+}
+```
+
+### Global options
+
+The following options can be used with all sub-commands.
+
+```
+  [--format=<stdout|json>]
+    The output format of the command. Defaults to stdout
+  
+  [--ignore-local-config]
+    Don't parse the .onionbox-config.json
+
+  [--verbose]
+    Show passes as well as failures, and extra info in general.
+
+  [--vverbose]
+    Dump out the even more info. Only use this if you are testing individual posts, or you really like large log files
+```
 
 ### Redirection Audit
 
@@ -24,9 +89,6 @@ Audit http redirects from the Redirection plugin to check for 404's, loops etc
 
   [--max-age=<days>]
     How many days since a redirect was hit is considered "old". Defaults to 365
-
-  [--verbose]
-    Show passes as well as failures, and extra info in general.
 
   [--ids=<id>...]
     Array of redirect IDs to test. Useful for retesting a subset from an earlier full audit
@@ -62,12 +124,6 @@ https://github.com/schemaorg/schemaorg/blob/main/data/releases/30.0/schemaorg-cu
 
   [--follow-links]
     Follow things like image links to see if they are resolving correctly
-
-  [--verbose]
-    Show passes as well as failures, and extra info in general.
-
-  [--vverbose]
-    Dump out the ld+json etc. Only use this if you are testing individual posts, or you really like large log files
 ```
 ### Sitemap audit
 
@@ -87,9 +143,6 @@ Exits with code 1 if anything is bad, so it can fail a pipeline. With `--format=
 ```
   wp onionbox sitemap
 
-  [--format=<stdout|json>]
-    The output format of the command. Defaults to stdout
-
   [--sitemap=<root_sitemap_filename>]
     Which sitemap file to start at. Defaults to sitemaps.xml
 
@@ -101,10 +154,4 @@ Exits with code 1 if anything is bad, so it can fail a pipeline. With `--format=
 
   [--staggered]
     This site uses staggered delivery: fail if no seopress-helper plugin is active, warn if no markets are suppressed.
-
-  [--verbose]
-    Show passes as well as failures, and extra info in general.
-
-  [--vverbose]
-    Also print every request. Useful for debugging
 ```
