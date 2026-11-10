@@ -57,7 +57,8 @@ abstract class AbstractCommandController extends AbstractController
 
     public function __destruct() {
         $this->json_output['command']['finished_at'] = time();
-        $this->json_output['command']['flags'] = $this->flags;
+        $this->json_output['command']['flags']       = $this->flags;
+        $this->json_output['command']['env']         = $_ENV['PANTHEON_ENVIRONMENT'] ?? $_ENV['HTTP_HOST'] ?? $_SERVER['HTTP_HOST'] ?? 'Unknown';
 
         if ( $this->flags['format'] === self::OUTPUT_FORMAT_JSON ) {
             echo json_encode( $this->json_output );

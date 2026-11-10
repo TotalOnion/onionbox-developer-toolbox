@@ -12,10 +12,12 @@ class HttpService {
     private string $base_url = '';
     private bool $has_scanned_for_suppressed_markets = false;
     private array $suppressed_markets = [];
+    private string $user_agent = '';
 
     public function __construct() {
 
-        $this->request = new WP_Http; 
+        $this->request = new WP_Http;
+        $this->user_agent = ONION_WORDPRESS_DEVELOPER_TOOLBOX_USER_AGENT . ' (v' . ONION_WORDPRESS_DEVELOPER_TOOLBOX_VERSION . ')';
 
         // don't use get_site_url() as that can be forced to be the true domain on sites split over multiple instances
         if ( 
@@ -181,6 +183,9 @@ class HttpService {
 	 *                        A WP_Error instance upon error. See WP_Http::response() for details.
      */
     public function get( string $url, string|array $options = [] ): array|WP_Error {
+        if ( ! ( $options['user-agent'] ?? false ) ) {
+            $options['user-agent'] = $this->user_agent;
+        }
         return $this->request->get( $url, $options );
     }
 }

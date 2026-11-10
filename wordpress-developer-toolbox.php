@@ -18,7 +18,7 @@ namespace OnionWordpressDeveloperToolbox;
  * Plugin Name:       Onion Wordpress Developers Toolbox
  * Plugin URI:        https://github.com/TotalOnion/wordpress-developer-toolbox
  * Description:       A set of extra tools for Wordpress development and testing
- * Version:           1.1.10
+ * Version:           1.1.11
  * Author:            Ben Broadhurst
  * Author URI:        https://totalonion.com
  * License:           GPL-2.0+
@@ -37,11 +37,12 @@ if (! defined('WPINC')) {
  * Start at version 1.0.0 and use SemVer - https://semver.org
  * Rename this for your plugin and update it as you release new versions.
  */
-define('ONION_WORDPRESS_DEVELOPER_TOOLBOX_VERSION', '1.1.10');
+define('ONION_WORDPRESS_DEVELOPER_TOOLBOX_VERSION', '1.1.11');
 define('ONION_WORDPRESS_DEVELOPER_TOOLBOX_NAME', 'onion-wordpress-developer-toolbox');
 define('ONION_WORDPRESS_DEVELOPER_TOOLBOX_NAMESPACE', 'OnionWordpressDeveloperToolbox');
 define('ONION_WORDPRESS_DEVELOPER_TOOLBOX_PLUGIN_FOLDER', __DIR__);
 define('ONION_WORDPRESS_DEVELOPER_TOOLBOX_PLUGIN_URL', plugin_dir_url(__FILE__));
+define('ONION_WORDPRESS_DEVELOPER_TOOLBOX_USER_AGENT', 'OnionBot Audit');
 
 // Autoloaders
 require_once ONION_WORDPRESS_DEVELOPER_TOOLBOX_PLUGIN_FOLDER . '/autoload.php';

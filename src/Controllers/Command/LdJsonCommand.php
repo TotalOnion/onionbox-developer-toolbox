@@ -81,7 +81,7 @@ class LdJsonCommand extends AbstractCommandController
      */
     public function __invoke( array $args, array $flags )
     {
-        if ( ! $flags['ignore-local-config'] ?? false ) {
+        if ( ! ( $flags['ignore-local-config'] ?? false ) ) {
             $this->load_local_config();
         }
         $this->flags = wp_parse_args( $flags, $this->flags );
