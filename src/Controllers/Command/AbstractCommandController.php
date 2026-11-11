@@ -91,6 +91,11 @@ abstract class AbstractCommandController extends AbstractController
             $this->flags = array_merge($this->flags, $local_config['tools'][ $this::COMMAND_NAME ]['flags']);
             $this->output( self::OUTPUT_AS_LOG, sprintf( 'Found local config %s and imported settings.', $this::LOCAL_CONFIG_FILENAME ) );
         }
+
+        // Add the project info from the local config. If available.
+        if ( $local_config['project'] ?? false ) {
+            $this->json_output['project'] = $local_config['project'];
+        }
     }
 
     private function find_config_path(): ?string {

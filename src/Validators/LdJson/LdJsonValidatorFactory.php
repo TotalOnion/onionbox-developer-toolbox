@@ -13,17 +13,23 @@ class LdJsonValidatorFactory {
 
     public const VALIDATOR_TYPE_AGGREGATE_RATING = 'AggregateRating';
     public const VALIDATOR_TYPE_BRAND            = 'Brand';
+    public const VALIDATOR_TYPE_CONTACT_POINT    = 'ContactPoint';
     public const VALIDATOR_TYPE_OFFER            = 'Offer';
+    public const VALIDATOR_TYPE_ORGANIZATION     = 'Organization';
     public const VALIDATOR_TYPE_PRODUCT          = 'Product';
     public const VALIDATOR_TYPE_RECIPE           = 'Recipe';
     public const VALIDATOR_TYPE_WEB_PAGE         = 'WebPage';
+    public const VALIDATOR_TYPE_WEB_SITE         = 'WebSite';
     public const AVAILABLE_VALIDATORS            = [
         self::VALIDATOR_TYPE_AGGREGATE_RATING,
         self::VALIDATOR_TYPE_BRAND,
+        self::VALIDATOR_TYPE_CONTACT_POINT,
         self::VALIDATOR_TYPE_OFFER,
+        self::VALIDATOR_TYPE_ORGANIZATION,
         self::VALIDATOR_TYPE_PRODUCT,
         self::VALIDATOR_TYPE_RECIPE,
         self::VALIDATOR_TYPE_WEB_PAGE,
+        self::VALIDATOR_TYPE_WEB_SITE,
     ];
 
     private ?Graph $graph;
