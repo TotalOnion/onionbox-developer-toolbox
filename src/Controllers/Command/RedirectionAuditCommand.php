@@ -5,7 +5,6 @@ namespace OnionWordpressDeveloperToolbox\Controllers\Command;
 use \DateTimeImmutable;
 use \WP_CLI;
 use OnionWordpressDeveloperToolbox\Exceptions\WpHttpException;
-use OnionWordpressDeveloperToolbox\Services\HttpService;
 
 class RedirectionAuditCommand extends AbstractCommandController
 {
@@ -30,7 +29,6 @@ class RedirectionAuditCommand extends AbstractCommandController
     private const LOG_AS_OLD             = 'old';
     private const LOG_AS_NEVER_HIT       = 'never-hit';
 
-    private ?HttpService $httpService;
     private string $redirection_export_file_location = '';
     private array $report = [
         'enabled' => [],
@@ -41,11 +39,22 @@ class RedirectionAuditCommand extends AbstractCommandController
         'has_warnings' => [],
     ];
 
+    protected array $flags = [
+        'module'        => self::DEFAULT_MODULE,
+        'max-age'       => self::DEFAULT_MAX_AGE_IN_DAYS,
+        'max-redirects' => self::DEFAULT_MAX_REDIRECTS,
+        'verbose'       => false,
+        'ids'           => [],
+        'id-from'       => null,
+        'id-to'         => null,
+        'match-url'     => null,
+        'export-only'   => false,
+    ];
+
     /**
      * @inheritDoc
      */
     public function __construct( $pluginName, $version ) {
-        $this->httpService = new HttpService;
         parent::__construct( $pluginName, $version );
     }
 
@@ -85,6 +94,9 @@ class RedirectionAuditCommand extends AbstractCommandController
     /**
      * Audit http redirects from the Redirection plugin to check for 404's, loops etc
      * 
+     * [--ignore-local-config]
+     * : Don't parse the .onionbox-config.json
+     * 
      * [--module=<wordpress|apache|nginx|all>]
      * : Which module to test. Defaults to 'all'
      * 
@@ -114,20 +126,7 @@ class RedirectionAuditCommand extends AbstractCommandController
      */
     public function __invoke( array $args, array $flags ):void
     {
-        $this->flags = wp_parse_args(
-            $flags,
-            [
-                'module'        => $this::DEFAULT_MODULE,
-                'max-age'       => $this::DEFAULT_MAX_AGE_IN_DAYS,
-                'max-redirects' => $this::DEFAULT_MAX_REDIRECTS,
-                'verbose'       => false,
-                'ids'           => [],
-                'id-from'       => null,
-                'id-to'         => null,
-                'match-url'     => null,
-                'export-only'   => false,
-            ]
-        );
+        parent::__invoke( $args, $flags );
 
         if ( ! $this->passes_sanity_check() || ! $this->validate_flags() ) {
             WP_CLI::error('Failed to start');
@@ -441,7 +440,7 @@ class RedirectionAuditCommand extends AbstractCommandController
             return;
         }
 
-        $url_to_test = $this->httpService->get_base_url() . $redirect['url'];
+        $url_to_test = $this->http_service->get_base_url() . $redirect['url'];
 
         // Add a trailing slash?
         if (
@@ -496,11 +495,11 @@ class RedirectionAuditCommand extends AbstractCommandController
             return;
         }
 
-        $final_url = $this->httpService->international_url_humanize(
-            $this->httpService->get_base_url() . $redirection_chain[ count( $redirection_chain ) - 2 ]['location']
+        $final_url = $this->http_service->international_url_humanize(
+            $this->http_service->get_base_url() . $redirection_chain[ count( $redirection_chain ) - 2 ]['location']
         );
-        $target_url_to_test_against = $this->httpService->international_url_humanize(
-            $this->httpService->get_base_url() . $redirect['action_data']['url']
+        $target_url_to_test_against = $this->http_service->international_url_humanize(
+            $this->http_service->get_base_url() . $redirect['action_data']['url']
         );
         
         if ( $final_url !== $target_url_to_test_against ) {
@@ -534,10 +533,10 @@ class RedirectionAuditCommand extends AbstractCommandController
         array $redirect_chain = []
         
     ):array {
-        $url = $this->httpService->international_url_sanitize( $url );
+        $url = $this->http_service->international_url_sanitize( $url );
 
         // @throws WpHttpException on failure
-        $this->httpService->is_target_url_valid( $url );
+        $this->http_service->is_target_url_valid( $url );
 
         if ( count( $redirect_chain ) >= $this->flags['max-redirects'] ) {
             throw new WpHttpException(
@@ -548,7 +547,7 @@ class RedirectionAuditCommand extends AbstractCommandController
             );
         }
 
-        $response = $this->httpService->get( $url, [ 'redirection' => 0 ] );
+        $response = $this->http_service->get( $url, [ 'redirection' => 0 ] );
         if ( is_wp_error( $response ) ) {
             throw new WpHttpException(
                 sprintf(
@@ -573,7 +572,7 @@ class RedirectionAuditCommand extends AbstractCommandController
                 );
             }
             $redirect_chain = $this->evaluate_redirection_chain(
-                $this->httpService->get_base_url() . $this_redirect['location'],
+                $this->http_service->get_base_url() . $this_redirect['location'],
                 $redirect_chain
             );
         }

@@ -8,9 +8,7 @@ use OnionWordpressDeveloperToolbox\Exceptions\WpDatabaseException;
 use OnionWordpressDeveloperToolbox\Exceptions\LdJsonException;
 use OnionWordpressDeveloperToolbox\Exceptions\WpHttpException;
 use OnionWordpressDeveloperToolbox\Services\DatabaseService;
-use OnionWordpressDeveloperToolbox\Services\HttpService;
 use OnionWordpressDeveloperToolbox\Validators\LdJson\LdJsonValidatorFactory;
-use WP_CLI;
 use WP_Http;
 use WP_Post;
 
@@ -36,7 +34,6 @@ class LdJsonCommand extends AbstractCommandController
     ];
 
     private ?DatabaseService $database_service;
-    private ?HttpService $http_service;
     private ?LdJsonValidatorFactory $ld_json_validator_factory;
 
     /**
@@ -44,7 +41,6 @@ class LdJsonCommand extends AbstractCommandController
      */
     public function __construct( $pluginName, $version ) {
         $this->database_service = new DatabaseService;
-        $this->http_service = new HttpService;
         $this->ld_json_validator_factory = new LdJsonValidatorFactory;
         parent::__construct( $pluginName, $version );
     }
@@ -79,17 +75,9 @@ class LdJsonCommand extends AbstractCommandController
      * [--vverbose]
      * : Dump out the ld+json etc. Only use this if you are testing individual posts, or you really like large log files
      */
-    public function __invoke( array $args, array $flags )
+    public function __invoke( array $args, array $flags ):void
     {
-        if ( ! ( $flags['ignore-local-config'] ?? false ) ) {
-            $this->load_local_config();
-        }
-        $this->flags = wp_parse_args( $flags, $this->flags );
-
-        // If you want very verbose, you gotta have verbose too.
-        if ( $this->flags['vverbose'] ) {
-            $this->flags['verbose'] = true;
-        }
+        parent::__invoke( $args, $flags );
 
         // Let's fetch some things to test
         $targets = [];

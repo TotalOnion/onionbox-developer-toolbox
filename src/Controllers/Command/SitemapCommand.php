@@ -10,7 +10,6 @@ use WP_CLI;
 use WP_Error;
 use OnionWordpressDeveloperToolbox\Models\SitemapEntryModel;
 use OnionWordpressDeveloperToolbox\Services\DatabaseService;
-use OnionWordpressDeveloperToolbox\Services\HttpService;
 use OnionWordpressDeveloperToolbox\Services\RedirectionService;
 
 class SitemapCommand extends AbstractCommandController
@@ -74,7 +73,6 @@ class SitemapCommand extends AbstractCommandController
     private array $link_results = [];     // link URL => result of check_link()
 
     private ?DatabaseService $database_service;
-    private ?HttpService $http_service;
     private ?RedirectionService $redirection_service;
 
     /**
@@ -82,7 +80,6 @@ class SitemapCommand extends AbstractCommandController
      */
     public function __construct( $pluginName, $version ) {
         $this->database_service = new DatabaseService;
-        $this->http_service = new HttpService;
         $this->redirection_service = new RedirectionService;
         parent::__construct( $pluginName, $version );
     }
@@ -116,18 +113,12 @@ class SitemapCommand extends AbstractCommandController
      * [--vverbose]
      * : Very verbose. Lots of output. Useful for debugging
      */
-    public function __invoke( array $args, array $flags )
+    public function __invoke( array $args, array $flags ):void
     {
         // Large sites have thousands of URLs; don't let PHP stop the crawl part way
         @set_time_limit( 0 );
 
-        $this->load_local_config();
-        $this->flags = wp_parse_args( $flags, $this->flags );
-
-        // If you want very verbose, you gotta have verbose too.
-        if ( $this->flags['vverbose'] ) {
-            $this->flags['verbose'] = true;
-        }
+        parent::__invoke( $args, $flags );
 
         if ( ! $this->validate_flags() ) {
             $this->output( self::OUTPUT_AS_ERROR, 'Invalid flag settings', self::IS_FATAL );

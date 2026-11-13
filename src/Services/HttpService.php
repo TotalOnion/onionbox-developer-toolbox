@@ -188,4 +188,19 @@ class HttpService {
         }
         return $this->request->get( $url, $options );
     }
+
+    /**
+	 * Wrapper for WP_Http
+	 *
+	 * @param string       $url  The request URL.
+	 * @param string|array $args Optional. Override the defaults.
+	 * @return array|WP_Error Array containing 'headers', 'body', 'response', 'cookies', 'filename'.
+	 *                        A WP_Error instance upon error. See WP_Http::response() for details.
+	 */
+	public function post( $url, $args = array() ) {
+        if ( ! ( $args['user-agent'] ?? false ) ) {
+            $options['user-agent'] = $this->user_agent;
+        }
+        return $this->request->post( $url, $args );
+    }
 }

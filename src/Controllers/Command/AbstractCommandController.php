@@ -5,6 +5,7 @@ namespace OnionWordpressDeveloperToolbox\Controllers\Command;
 use \WP_CLI;
 use OnionWordpressDeveloperToolbox\Controllers\AbstractController;
 use OnionWordpressDeveloperToolbox\Exceptions\CliException;
+use OnionWordpressDeveloperToolbox\Services\HttpService;
 
 abstract class AbstractCommandController extends AbstractController
 {
@@ -21,6 +22,9 @@ abstract class AbstractCommandController extends AbstractController
     protected const OUTPUT_AS_ERROR       = 'error';
     protected const IS_FATAL              = true;
 
+    protected ?HttpService $http_service;
+    protected bool $has_run = false;
+    protected array $local_config = [];
     protected array $flags = [
         'format'  => self::OUTPUT_FORMAT_DEFAULT,
         'verbose' => false,
@@ -46,22 +50,45 @@ abstract class AbstractCommandController extends AbstractController
         if ( ! $this::COMMAND_NAME ) {
             throw new CliException( 'Missing COMMAND_NAME class constant' );
         }
+        $this->http_service = new HttpService;
         parent::__construct( $pluginName, $version );
 
         $this->json_output['command'] = [
             'name'    => $this::COMMAND_NAME,
+            'env'     => $_ENV['PANTHEON_ENVIRONMENT'] ?? $_ENV['HTTP_HOST'] ?? $_SERVER['HTTP_HOST'] ?? 'Unknown',
             'version' => $version,
             'run_at'  => time(),
         ];
     }
 
+    public function __invoke( array $args, array $flags ):void {
+        $this->load_local_config();
+
+        if ( ! ( $flags['ignore-local-config'] ?? false ) ) {
+            $this->import_local_config_settings();
+        }
+        $this->flags = wp_parse_args( $flags, $this->flags );
+
+        // If you want very verbose, you gotta have verbose too.
+        if ( $this->flags['vverbose'] ) {
+            $this->flags['verbose'] = true;
+        }
+
+        $this->has_run = true;
+    }
+
     public function __destruct() {
+        if ( ! $this->has_run ) {
+            return;
+        }
+        
         $this->json_output['command']['finished_at'] = time();
         $this->json_output['command']['flags']       = $this->flags;
-        $this->json_output['command']['env']         = $_ENV['PANTHEON_ENVIRONMENT'] ?? $_ENV['HTTP_HOST'] ?? $_SERVER['HTTP_HOST'] ?? 'Unknown';
+
+        $this->send_report();
 
         if ( $this->flags['format'] === self::OUTPUT_FORMAT_JSON ) {
-            echo json_encode( $this->json_output );
+            echo json_encode( $this->json_output ).PHP_EOL;
         }
     }
 
@@ -69,10 +96,17 @@ abstract class AbstractCommandController extends AbstractController
         WP_CLI::add_command( 'onionbox ' . $this::COMMAND_NAME,  $this );
     }
 
+    protected function import_local_config_settings():void {
+        if ( array_key_exists( 'flags', $this->local_config['tools'][ $this::COMMAND_NAME ] ) ) {
+            $this->flags = array_merge($this->flags, $this->local_config['tools'][ $this::COMMAND_NAME ]['flags']);
+            $this->output( self::OUTPUT_AS_LOG, sprintf( 'Found local config %s and imported settings.', $this::LOCAL_CONFIG_FILENAME ) );
+        }
+    }
+
     /**
      * Look for config file ($this::LOCAL_CONFIG_FILENAME) in the folder hierarchy and load it if it exists
      */
-    protected function load_local_config():void {
+    private function load_local_config():void {
         $path_to_config = $this->find_config_path();
         if ( ! $path_to_config ) {
             return;
@@ -86,15 +120,12 @@ abstract class AbstractCommandController extends AbstractController
         if ( ! array_key_exists( $this::COMMAND_NAME, $local_config['tools'] ?? [] ) ) {
             return;
         }
-        
-        if ( array_key_exists( 'flags', $local_config['tools'][ $this::COMMAND_NAME ] ) ) {
-            $this->flags = array_merge($this->flags, $local_config['tools'][ $this::COMMAND_NAME ]['flags']);
-            $this->output( self::OUTPUT_AS_LOG, sprintf( 'Found local config %s and imported settings.', $this::LOCAL_CONFIG_FILENAME ) );
-        }
+
+        $this->local_config = $local_config;
 
         // Add the project info from the local config. If available.
-        if ( $local_config['project'] ?? false ) {
-            $this->json_output['project'] = $local_config['project'];
+        if ( $this->local_config['project'] ?? false ) {
+            $this->json_output['project'] = $this->local_config['project'];
         }
     }
 
@@ -158,5 +189,24 @@ abstract class AbstractCommandController extends AbstractController
                 break;
             }
         }
+    }
+
+    /**
+     * Send the output to a remote URL
+     */
+    private function send_report():void {
+        if (
+            ( ! $this->local_config['reporting_url'] ?? false )
+            || in_array( $this->json_output['command']['env'], [ 'lando', 'local' ] )
+         ) {
+            return;
+        }
+
+        $args = [
+            'headers' => [ 'Content-Type: application/json' ],
+            'body' => json_encode( $this->json_output )
+        ];
+
+        $this->http_service->post( $this->local_config['reporting_url'], $args );
     }
 }
