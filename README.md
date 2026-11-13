@@ -11,11 +11,7 @@ CLI toolbox for WP devs
 5. Push those changes to the repo
 6. Publish a tagged release that matches the new version number
 
-## Help
-
-`wp help onionbox`
-
-### Local config file format
+## Local config file format
 
 The tool will, by default, look for a `.onionbox-config.json` file by traversing up the directory tree. Typically this should be stored in the project root folder.
 
@@ -23,10 +19,13 @@ This file contains project specific configuration for each command so that it ca
 
 This configuration can be ignored using the `--ignore-local-config` flag.
 
+If you set a `reporting_url` an you are not running on `local` or `lando` as an environment, then the output from the audits will also be sent to that URL as a POST
+
 Example format:
 ```
 {
     "local_config_version": 1,
+    "reporting_url": "https://onionbox-reporting.lndo.site/api/log",
     "project": {
         "name": "theglenlivet-v2",
         "id": "7af423af-bdd0-436c-8ef2-6377ebd66d4d"
@@ -52,6 +51,10 @@ Example format:
     }
 }
 ```
+
+## Help
+
+`wp help onionbox`
 
 ### Global options
 
