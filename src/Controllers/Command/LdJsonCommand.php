@@ -23,11 +23,12 @@ class LdJsonCommand extends AbstractCommandController
 
     protected array $flags = [
         'ignore-local-config'        => false,
+        'progress'                   => false,
         'target-post-types'          => null,
         'target-path'                => null,
         'target-ids'                 => null,
         'follow-links'               => false,
-        'format'                     => 'stdout',
+        'format'                     => AbstractCommandController::OUTPUT_FORMAT_DEFAULT,
         'exclude-suppressed-markets' => false,
         'verbose'                    => false,
         'vverbose'                   => false,
@@ -50,6 +51,9 @@ class LdJsonCommand extends AbstractCommandController
      * 
      * [--ignore-local-config]
      * : Don't parse the .onionbox-config.json
+     * 
+     * [--progress]
+     * : Output a % progress to stdout
      * 
      * [--target-post-types=<post-type>...]
      * : Test all of a post type. Pass in a csv to do multiple
@@ -103,7 +107,9 @@ class LdJsonCommand extends AbstractCommandController
             return;
         }
 
-        $this->output( self::OUTPUT_AS_LOG, sprintf( 'Checking %d targets', count( $targets ) ) );
+        $total_targets = count( $targets );
+        $total_scanned = 0;
+        $this->output( self::OUTPUT_AS_LOG, sprintf( 'Checking %d targets',  $total_targets ) );
 
         // Lets do some testing
         foreach( $targets as $post ) {
@@ -115,6 +121,11 @@ class LdJsonCommand extends AbstractCommandController
                     self::LOG_AS_BAD,
                     $e->getMessage()
                 );
+            } finally {
+                $total_scanned++;
+                if ( $this->flags['progress'] && $this->flags['format'] !== 'stdout' ) {
+                    $this->stdout( sprintf('%0.01f', ( 100 / $total_targets ) * $total_scanned ) );
+                }
             }
         }
     }

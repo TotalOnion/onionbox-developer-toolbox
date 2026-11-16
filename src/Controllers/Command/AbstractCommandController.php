@@ -191,6 +191,10 @@ abstract class AbstractCommandController extends AbstractController
         }
     }
 
+    protected function stdout( string $message ): void {
+        WP_CLI::log( $message );
+    }
+
     /**
      * Send the output to a remote URL
      */
