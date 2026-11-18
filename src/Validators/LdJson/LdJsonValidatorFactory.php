@@ -12,20 +12,26 @@ class LdJsonValidatorFactory {
     public const SET_AS_SUB_SCHEMA = true;
 
     public const VALIDATOR_TYPE_AGGREGATE_RATING = 'AggregateRating';
+    public const VALIDATOR_TYPE_ARTICLE          = 'Article';
     public const VALIDATOR_TYPE_BRAND            = 'Brand';
     public const VALIDATOR_TYPE_CONTACT_POINT    = 'ContactPoint';
+    public const VALIDATOR_TYPE_IMAGE_OBJECT     = 'ImageObject';
     public const VALIDATOR_TYPE_OFFER            = 'Offer';
     public const VALIDATOR_TYPE_ORGANIZATION     = 'Organization';
+    public const VALIDATOR_TYPE_PERSON           = 'Person';
     public const VALIDATOR_TYPE_PRODUCT          = 'Product';
     public const VALIDATOR_TYPE_RECIPE           = 'Recipe';
     public const VALIDATOR_TYPE_WEB_PAGE         = 'WebPage';
     public const VALIDATOR_TYPE_WEB_SITE         = 'WebSite';
     public const AVAILABLE_VALIDATORS            = [
+        self::VALIDATOR_TYPE_ARTICLE,
         self::VALIDATOR_TYPE_AGGREGATE_RATING,
         self::VALIDATOR_TYPE_BRAND,
         self::VALIDATOR_TYPE_CONTACT_POINT,
+        self::VALIDATOR_TYPE_IMAGE_OBJECT,
         self::VALIDATOR_TYPE_OFFER,
         self::VALIDATOR_TYPE_ORGANIZATION,
+        self::VALIDATOR_TYPE_PERSON,
         self::VALIDATOR_TYPE_PRODUCT,
         self::VALIDATOR_TYPE_RECIPE,
         self::VALIDATOR_TYPE_WEB_PAGE,
@@ -43,7 +49,7 @@ class LdJsonValidatorFactory {
         $this->graph->parseFile(__DIR__ . '/schemaorg-current-https.ttl', 'turtle');
     }
 
-    public function instance( array $ld_json, bool $is_sub_schema = false ):LdJsonValidator {
+    public function instance( array $ld_json, bool $is_sub_schema = false ):AbstractLdJsonValidator {
         if ( ! array_key_exists( '@type', $ld_json ) ) {
             throw new LdJsonException( 'No @type found in the ld+json' );
         }

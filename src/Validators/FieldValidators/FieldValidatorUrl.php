@@ -9,7 +9,10 @@ use OnionWordpressDeveloperToolbox\Services\HttpService;
 class FieldValidatorUrl extends FieldValidatorAbstract {
 
     public function validate( mixed $value, array $flags = [] ):bool {
-        if ( ! HttpService::is_target_url_valid( $value ) ) {
+        if (
+            gettype( $value ) !== 'string'
+            || ! HttpService::is_target_url_valid( $value )
+        ) {
             throw new FieldValidatorException(
                 sprintf(
                     'Field "%s" is not a valid URL',

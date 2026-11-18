@@ -8,7 +8,7 @@ use OnionWordpressDeveloperToolbox\Exceptions\LdJsonException;
 use OnionWordpressDeveloperToolbox\Services\HttpService;
 use OnionWordpressDeveloperToolbox\Validators\FieldValidators\FieldValidatorFactory;
 
-abstract class LdJsonValidator {
+abstract class AbstractLdJsonValidator {
 
     protected const SCHEMA_NAME = '';
     protected const REQUIRED_FIELDS = [];
@@ -28,11 +28,30 @@ abstract class LdJsonValidator {
         $this->http_service = new HttpService();
 
         try {
-            foreach ( $this::REQUIRED_FIELDS as $field_key => $field_config ) {
-                $this->required_fields[ $field_key ] = FieldValidatorFactory::instance( $field_key, $field_config );
+            foreach ( $this::REQUIRED_FIELDS as $field_key => $fields ) {
+                if ( ! is_array( $fields ) ) {
+                    throw new FieldValidatorException(
+                        sprintf( 'REQUIRED_FIELDS[%s] is not an array. Array expected.', $field_key )
+                    );
+                }
+
+                $this->required_fields[ $field_key ] = [];
+                foreach ( $fields as $field_config ) {
+                    $this->required_fields[ $field_key ][] = FieldValidatorFactory::instance( $field_key, $field_config );
+                }
             }
-            foreach ( $this::OPTIONAL_FIELDS as $field_key => $field_config ) {
-                $this->optional_fields[ $field_key ] = FieldValidatorFactory::instance( $field_key, $field_config );
+
+            foreach ( $this::OPTIONAL_FIELDS as $field_key => $fields ) {
+                if ( ! is_array( $fields ) ) {
+                    throw new FieldValidatorException(
+                        sprintf( 'OPTIONAL_FIELDS[%s] is not an array. Array expected.', $field_key )
+                    );
+                }
+
+                $this->optional_fields[ $field_key ] = [];
+                foreach ( $fields as $field_config ) {
+                    $this->optional_fields[ $field_key ][] = FieldValidatorFactory::instance( $field_key, $field_config );
+                }
             }
         } catch ( \Exception $e ) {
             // rethrow a generic exception as an LdJsonException
@@ -50,17 +69,17 @@ abstract class LdJsonValidator {
         }
 
         $errors = $this->validate_json_ld_node( $this->ld_json );
-        $errors = $this->check_required_fields( $errors );
+        $errors = $this->check_fields( $errors );
         return $errors;
     }
 
     /**
-     * Check any REQUIRED_FIELDS that are set in the descendent class
+     * Check any REQUIRED_FIELDS and OPTIONAL_FIELDS that are set in the descendent class
      * 
      * @param array $errors
      * @return array
      */
-    private function check_required_fields( $errors = [] ):array {
+    private function check_fields( $errors = [] ):array {
         if (
             ! array_key_exists( '@type', $this->ld_json )
             || $this->ld_json['@type'] !== $this::SCHEMA_NAME
@@ -68,28 +87,44 @@ abstract class LdJsonValidator {
             $errors[] = sprintf( 'Missing schema @type=%s', $this::SCHEMA_NAME );
         }
 
-        foreach( $this->required_fields as $key => $field_validator ) {
+        foreach( $this->required_fields as $key => $field_validators ) {
             if ( ! array_key_exists( $key, $this->ld_json ) ) {
                 $errors[] = sprintf( 'Missing required fields "%s"', $key );
                 continue;
             }
 
-            try {
-                $field_validator->validate( $this->ld_json[ $key ], $this->flags );
-            } catch ( FieldValidatorException $e ) {
-                $errors[] = $e->getMessage();
+            $field_errors = [];
+            foreach ( $field_validators as $field_validator ) {
+                try {
+                    $field_validator->validate( $this->ld_json[ $key ], $this->flags );
+                } catch ( FieldValidatorException $e ) {
+                    $field_errors[] = $e->getMessage();
+                }
+            }
+
+            // Some fields can have multiple validators. These are treated as OR, so we are only in error if _all_ fail
+            if ( count( $field_errors ) === count( $field_validators ) ) {
+                $errors += $field_errors;
             }
         }
 
-        foreach( $this->optional_fields as $key => $field_validator ) {
+        foreach( $this->optional_fields as $key => $field_validators ) {
             if ( ! array_key_exists( $key, $this->ld_json ) ) {
                 continue;
             }
 
-            try {
-                $field_validator->validate( $this->ld_json[ $key ], $this->flags );
-            } catch ( FieldValidatorException $e ) {
-                $errors[] = $e->getMessage();
+            $field_errors = [];
+            foreach ( $field_validators as $field_validator ) {
+                try {
+                    $field_validator->validate( $this->ld_json[ $key ], $this->flags );
+                } catch ( FieldValidatorException $e ) {
+                    $field_errors[] = $e->getMessage();
+                }
+            }
+
+            // Some fields can have multiple validators. These are treated as OR, so we are only in error if _all_ fail
+            if ( count( $field_errors ) === count( $field_validators ) ) {
+                $errors += $field_errors;
             }
         }
 
@@ -242,6 +277,15 @@ abstract class LdJsonValidator {
             return isset($value['@type']);
         }
 
+        return false;
+    }
+
+    protected function field_validator_is_valid( array $field_validators ) {
+        foreach( $field_validators as $field_validator ) {
+            if ( $field_validator->is_valid() ) {
+                return true;
+            }
+        }
         return false;
     }
 }

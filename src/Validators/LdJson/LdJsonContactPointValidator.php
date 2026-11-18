@@ -4,14 +4,14 @@ namespace OnionWordpressDeveloperToolbox\Validators\LdJson;
 
 use OnionWordpressDeveloperToolbox\Validators\FieldValidators\FieldValidatorFactory;
 
-class LdJsonContactPointValidator extends LdJsonValidator {
+class LdJsonContactPointValidator extends AbstractLdJsonValidator {
     protected const SCHEMA_NAME = 'ContactPoint';
     protected const REQUIRED_FIELDS = [
-        'contactType' => [ 'field_type' => FieldValidatorFactory::FIELD_TYPE_STRING ],
+        'contactType' => [ [ 'field_type' => FieldValidatorFactory::FIELD_TYPE_STRING ] ],
     ];
     protected const OPTIONAL_FIELDS = [
-        'email'     => [ 'field_type' => FieldValidatorFactory::FIELD_TYPE_STRING ],
-        'telephone' => [ 'field_type' => FieldValidatorFactory::FIELD_TYPE_STRING ],
+        'email'     => [ [ 'field_type' => FieldValidatorFactory::FIELD_TYPE_STRING ] ],
+        'telephone' => [ [ 'field_type' => FieldValidatorFactory::FIELD_TYPE_STRING ] ],
     ];
 
     public function validate():array {
@@ -19,8 +19,8 @@ class LdJsonContactPointValidator extends LdJsonValidator {
 
         // We need either an email or a phone number
         if (
-            ! $this->optional_fields['email']->is_valid()
-            && ! $this->optional_fields['telephone']->is_valid()
+            ! $this->field_validator_is_valid( $this->optional_fields['email'] )
+            && ! $this->field_validator_is_valid( $this->optional_fields['telephone'] )
         ) {
             $errors[] = 'ContactPoint Schemas need to have a means of contact; either email or telephone';
         }

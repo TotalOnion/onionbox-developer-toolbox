@@ -27,7 +27,7 @@ class FieldValidatorFactory {
 
     public static function instance(
         string $field_key,
-        array $field_config
+        array $field_config = []
     ) : FieldValidatorAbstract
     {
         if ( ! array_key_exists( 'field_type', $field_config ) ) {
