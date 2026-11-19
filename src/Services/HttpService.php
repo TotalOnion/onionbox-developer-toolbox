@@ -12,12 +12,10 @@ class HttpService {
     private string $base_url = '';
     private bool $has_scanned_for_suppressed_markets = false;
     private array $suppressed_markets = [];
-    private string $user_agent = '';
+    private string $user_agent = ONION_WORDPRESS_DEVELOPER_TOOLBOX_USER_AGENT . ' (v' . ONION_WORDPRESS_DEVELOPER_TOOLBOX_VERSION . ')';
 
     public function __construct() {
-
         $this->request = new WP_Http;
-        $this->user_agent = ONION_WORDPRESS_DEVELOPER_TOOLBOX_USER_AGENT . ' (v' . ONION_WORDPRESS_DEVELOPER_TOOLBOX_VERSION . ')';
 
         // don't use get_site_url() as that can be forced to be the true domain on sites split over multiple instances
         if ( 
@@ -36,7 +34,7 @@ class HttpService {
             ($_ENV['LANDO_APP_NAME'] ?? false)
             && ($_ENV['LANDO_DOMAIN'] ?? false)
         ) {
-            $permalink = preg_replace( '/https:\/\/([^\/]+)/', $this->get_base_url(), $permalink );
+            $permalink = preg_replace( '/https?:\/\/([^\/]+)/', $this->get_base_url(), $permalink );
         }
         
         return $permalink;
